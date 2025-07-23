@@ -190,8 +190,8 @@ public:
                 lastDataInCV = dataInValue;
                 for (int i = 0; i < EUCLID_COUNT; ++i)
                 {
-                    int8_t onset = _stepSeqModel._rand.getRandom16(dataInValue);
-                    int8_t stepSize = _stepSeqModel._rand.getRandom16(dataInValue);
+                    int8_t onset = _stepSeqModel._rand.getRandom16(1, dataInValue);
+                    int8_t stepSize = _stepSeqModel._rand.getRandom16(2, dataInValue);
                     if (onset != stepSize) 
                     {
                         _euclidean[i].generate(onset, stepSize);
