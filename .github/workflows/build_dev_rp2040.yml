@@ -4,6 +4,9 @@ on:
   push:
     branches: [ dev ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,8 +27,7 @@ jobs:
 
       - name: Build project (env:waveshare_rp2040_zero)
         run: |
-          pwd
-          platformio run -e waveshare_rp2040_zero -d app/TriggerHappy -v
+          platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
 
       - name: Rename firmware.uf2 to TriggerHappy.uf2
         run: |
