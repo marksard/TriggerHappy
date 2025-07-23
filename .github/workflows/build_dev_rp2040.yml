@@ -23,7 +23,8 @@ jobs:
           pip install platformio
 
       - name: Build project (env:waveshare_rp2040_zero)
-        run: platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
+        run: |
+          platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
 
       - name: Rename firmware.uf2 to TriggerHappy.uf2
         run: |
