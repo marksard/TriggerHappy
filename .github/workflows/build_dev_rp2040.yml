@@ -24,11 +24,12 @@ jobs:
 
       - name: Build project (env:waveshare_rp2040_zero)
         run: |
+          pwd
           platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
 
       - name: Rename firmware.uf2 to TriggerHappy.uf2
         run: |
-          cp .pio/build/waveshare_rp2040_zero/firmware.uf2 TriggerHappy.uf2
+          cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 app/TriggerHappy/TriggerHappy.uf2
 
       - name: Create timestamp tag
         run: |
