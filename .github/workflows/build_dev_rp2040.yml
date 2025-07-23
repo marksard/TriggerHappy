@@ -34,7 +34,7 @@ jobs:
       - name: Create timestamp tag
         run: |
           TZ=Asia/Tokyo date
-          TIMESTAMP=$(date +"%Y_%m_%d_%H:%M")
+          TIMESTAMP=$(date +"%Y_%m_%d_%H_%M")
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
           git tag "$TIMESTAMP"
