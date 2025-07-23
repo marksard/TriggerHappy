@@ -16,7 +16,7 @@
 #include "lib/RotaryEncoder.hpp"
 #include "lib/ADCErrorCorrection.hpp"
 #include "lib/RGBLEDPWMControl.hpp"
-#include "lib/EepRomConfigIO.hpp"
+#include "lib/EEPROMConfigIO.hpp"
 #include "triggerhappy_gpio.h"
 #include "triggerhappy_basicconfig.h"
 #include "SystemConfig.hpp"
