@@ -7,9 +7,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: app/TriggerHappy
+    # defaults:
+    #   run:
+    #     working-directory: app/TriggerHappy
 
     steps:
       - name: Checkout repository
@@ -26,7 +26,7 @@ jobs:
           pip install platformio
 
       - name: Build project (env:waveshare_rp2040_zero)
-        run: platformio run -e waveshare_rp2040_zero
+        run: platformio run -e waveshare_rp2040_zero -d app/TriggerHappy/
 
       - name: Rename firmware.uf2 to TriggerHappy.uf2
         run: |
