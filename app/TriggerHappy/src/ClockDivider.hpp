@@ -9,10 +9,10 @@
 #include <Arduino.h>
 #include <numeric>
 
-#include "../../common/lib/EdgeChecker.hpp"
-#include "../../common/triggerhappy_gpio.h"
-#include "../../common/triggerhappy_basicconfig.h"
-#include "../../common/TriggerOutManager.hpp"
+#include "lib/EdgeChecker.hpp"
+#include "triggerhappy_gpio.h"
+#include "triggerhappy_basicconfig.h"
+#include "TriggerOutManager.hpp"
 
 class ClockDivider
 {

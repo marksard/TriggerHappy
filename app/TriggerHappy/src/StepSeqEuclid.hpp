@@ -9,12 +9,12 @@
 #include <Arduino.h>
 #include <hardware/pwm.h>
 
-#include "../../common/lib/EdgeChecker.hpp"
-#include "../../common/lib/Quantizer.hpp"
-#include "../../common/lib/Euclidean.hpp"
-#include "../../common/triggerhappy_gpio.h"
-#include "../../common/triggerhappy_basicconfig.h"
-#include "../../common/TriggerOutManager.hpp"
+#include "lib/EdgeChecker.hpp"
+#include "lib/Quantizer.hpp"
+#include "lib/Euclidean.hpp"
+#include "triggerhappy_gpio.h"
+#include "triggerhappy_basicconfig.h"
+#include "TriggerOutManager.hpp"
 #include "StepSeqModel.hpp"
 
 class StepSeqEuclid
