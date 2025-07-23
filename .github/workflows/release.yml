@@ -1,0 +1,42 @@
+name: Release TriggerHappy Firmware
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 例: v1.0.0, v2.3.4
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PlatformIO
+        run: |
+          python -m pip install --upgrade pip
+          pip install platformio
+
+      - name: Build project
+        run: |
+          platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
+
+      - name: Rename firmware.uf2
+        run: |
+          cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 TriggerHappy.uf2
+
+      - name: Upload Release to GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          files: TriggerHappy.uf2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

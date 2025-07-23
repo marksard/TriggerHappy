@@ -2,7 +2,7 @@ name: Build TriggerHappy (RP2040 Zero)
 
 on:
   push:
-    branches: [ dev ]
+    branches: [ dev_test ]
 
 permissions:
   contents: write
