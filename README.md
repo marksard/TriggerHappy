@@ -26,6 +26,7 @@
 
 ## Documents
 
+<img width="2728" height="1877" alt="Schematic" src="https://github.com/user-attachments/assets/f9e13bb8-b088-4d35-bd2d-046cb3acb846" />
 
 ## Demonstration
 
