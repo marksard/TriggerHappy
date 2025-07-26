@@ -633,6 +633,8 @@ TriggerHappyを使用中に問題が発生した場合は、以下の項目を�
 4. 最新のファームウェア（.uf2ファイル）をドラッグ＆ドロップしてください。
 5. 書き込み後、自動的に再起動します。
 
+[最新ファームウェア](https://github.com/marksard/TriggerHappy/releases)  
+
 ### 8.2-CV出力電圧調整方法
 
 1. ユーロラック電源コネクタを取り付けます。
@@ -655,6 +657,11 @@ TriggerHappyを使用中に問題が発生した場合は、以下の項目を�
 
 
 <div style="page-break-before: always"></div>
+
+### 8.5-URL
+
+[Github](https://github.com/marksard/TriggerHappy)  
+[最新ファームウェア](https://github.com/marksard/TriggerHappy/releases)  
 
 ---
 
@@ -687,6 +694,7 @@ TriggerHappyを使用中に問題が発生した場合は、以下の項目を�
 ## 10.-改版履歴
 - 2025-06-23 初版
 - 2025-07-23 加筆・修正
+- 2025-07-23 URL追加
 
 
 
