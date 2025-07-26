@@ -9,7 +9,7 @@
 |---|---|
 | Power Supply | Eurorack ±12V (2x5pin)<br> +12V:22mA<br>-12V:4mA |
 | Width | Eurorack 6HP |
-| Depth | 280mm (Depth from panel) |
+| Depth | 300mm (Depth from panel) |
 | Microcontroller | RP2040 (Waveshare RP2040 ZERO) |
 | CLOCK IN | 0~5V(±1%)<br>Impedance:100kΩ |
 | RESET IN | 0~5V(±1%)<br>Impedance:100kΩ |
