@@ -26,7 +26,7 @@
 
 ## Documents
 
-[Application Manual](https://github.com/marksard/TriggerHappy/blob/d1f2f684eb76707538dfbf5cb3b3ae44de7d5ee7/app/TriggerHappy/manual/TriggerHappy%20Operation%20Manual.pdf)  
+[App Manual (Japanese)](https://github.com/marksard/TriggerHappy/blob/dev/app/TriggerHappy/manual/TriggerHappy%20Operation%20Manual.pdf)
 
 <img width="2728" height="1877" alt="Schematic" src="https://github.com/user-attachments/assets/f9e13bb8-b088-4d35-bd2d-046cb3acb846" />
 
