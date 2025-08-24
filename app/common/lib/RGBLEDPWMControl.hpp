@@ -33,7 +33,8 @@ public:
           _ledRLevel(0), _ledGLevel(0), _ledBLevel(0),
           _ledRFreq(300), _ledGFreq(300), _ledBFreq(300),
           _color(MenuColor::BLACK),
-          _ignoreMenuColor(false) {}
+          _ignoreMenuColor(false),
+          _menuColorLevel(5) {}
 
     void init(float sampleFreq, uint16_t waveHeightBit, uint8_t ledRPin, uint8_t ledGPin, uint8_t ledBPin)
     {
@@ -130,6 +131,11 @@ public:
         _ledBLevel = level;
     }
 
+    void setMenuColorLevel(int16_t level)
+    {
+        _menuColorLevel = level;
+    }
+
     void setRLevelMap(int16_t level, int16_t minLevel, int16_t maxLevel)
     {
         level = constrain(map(level, minLevel, maxLevel, 0, _waveHeightBit), 0, _waveHeightBit);
@@ -189,39 +195,39 @@ public:
         switch (_color)
         {
         case MenuColor::RED:
-            ledRMenuLevel = 5;
+            ledRMenuLevel = _menuColorLevel;
             ledGMenuLevel = 1;
             ledBMenuLevel = 1;
             break;
         case MenuColor::GREEN:
             ledRMenuLevel = 1;
-            ledGMenuLevel = 5;
+            ledGMenuLevel = _menuColorLevel;
             ledBMenuLevel = 1;
             break;
         case MenuColor::BLUE:
             ledRMenuLevel = 1;
             ledGMenuLevel = 1;
-            ledBMenuLevel = 5;
+            ledBMenuLevel = _menuColorLevel;
             break;
         case MenuColor::YELLOW:
-            ledRMenuLevel = 5;
-            ledGMenuLevel = 5;
+            ledRMenuLevel = _menuColorLevel;
+            ledGMenuLevel = _menuColorLevel;
             ledBMenuLevel = 1;
             break;
         case MenuColor::CYAN:
             ledRMenuLevel = 1;
-            ledGMenuLevel = 5;
-            ledBMenuLevel = 5;
+            ledGMenuLevel = _menuColorLevel;
+            ledBMenuLevel = _menuColorLevel;
             break;
         case MenuColor::MAGENTA:
-            ledRMenuLevel = 5;
+            ledRMenuLevel = _menuColorLevel;
             ledGMenuLevel = 1;
-            ledBMenuLevel = 5;
+            ledBMenuLevel = _menuColorLevel;
             break;
         case MenuColor::WHITE:
-            ledRMenuLevel = 6;
-            ledGMenuLevel = 6;
-            ledBMenuLevel = 6;
+            ledRMenuLevel = _menuColorLevel;
+            ledGMenuLevel = _menuColorLevel;
+            ledBMenuLevel = _menuColorLevel;
             break;
         case MenuColor::BLACK:
         default:
@@ -265,6 +271,7 @@ private:
     MenuColor _color;
     bool _ignoreMenuColor;
     uint8_t _waveHeightBit;
+    uint8_t _menuColorLevel;
 
     const int8_t _rainbowR[16] = {11, 11, 11,  8,  4,  0,  0,  0,  0,  0,  0,  0,  8, 11, 11, 11};
     const int8_t _rainbowG[16] = { 0,  0,  0,  0,  0,  0,  4,  8, 11, 11, 11, 11, 11, 11, 11, 11};
