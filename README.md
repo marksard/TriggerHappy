@@ -21,15 +21,14 @@
 
 ## Images
 
-![th_01](/_data/th_02.jpg)  
-![th_01](/_data/th_03.jpg)  
-![th_01](/_data/th_schematic.jpg)  
+![th_02](/_data/th_02.jpg)  
+![th_03](/_data/th_03.jpg)  
 
 ## Documents
 
 [App Manual (Japanese)](https://github.com/marksard/TriggerHappy/blob/main/app/TriggerHappy/manual/TriggerHappy%20Operation%20Manual.pdf)
 
-<img width="2728" height="1877" alt="Schematic" src="https://github.com/user-attachments/assets/f9e13bb8-b088-4d35-bd2d-046cb3acb846" />
+![th_schematic](/_data/th_schematic.png)  
 
 ## Demonstration
 
