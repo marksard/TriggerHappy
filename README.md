@@ -1,7 +1,7 @@
 # TriggerHappy
 6HP Eurorack modular compatible Trigger Machine
 
-![20250624-IMGP9085](https://github.com/user-attachments/assets/e1b36987-22fb-4971-90d0-d1aa9370f995)  
+![th_01](/_data/th_01.jpg)  
 
 ## Specification
 
@@ -21,8 +21,9 @@
 
 ## Images
 
-![20250726-IMGP9107](https://github.com/user-attachments/assets/b1aa1a07-5d19-46d6-a454-afa2b8dbd805)  
-![20250726-IMGP9090](https://github.com/user-attachments/assets/24a442c5-c738-4d03-8225-05b013479468)  
+![th_01](/_data/th_02.jpg)  
+![th_01](/_data/th_03.jpg)  
+![th_01](/_data/th_schematic.jpg)  
 
 ## Documents
 
@@ -32,3 +33,4 @@
 
 ## Demonstration
 
+[![img](https://github.com/user-attachments/assets/6f500f82-8094-46f6-9fc9-aba345766cd7)](https://youtu.be/n2r3Bfe7ZCw?si=RFuKG39FiOBL9A9t)  
