@@ -286,8 +286,8 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
         {
         }
 
-        rgbLedControl.setBLevel(inputStep == 0 ? 11 : (inputStep % 4) > 0 ? 4
-                                                                          : 8);
+        rgbLedControl.setBLevel(inputStep == 0 ? 8 : (inputStep % 4) > 0 ? 4
+                                                                          : 6);
     }
 }
 
@@ -348,6 +348,10 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
         else if (buttonStates == ButtonCondition::NONE)
         {
         }
+
+        rgbLedControl.setRLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 11 : 0);
+        rgbLedControl.setMenuColor(RGBLEDPWMControl::MenuColor::CYAN);
+        rgbLedControl.setMenuColorLevel(4);
     }
     else
     {
@@ -394,21 +398,21 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
         {
             cvSequenceWork[inputStep] = constrain(cvSequenceWork[inputStep] + encValue, 0, 14);
         }
-    }
 
-    if (isRec)
-    {
-        rgbLedControl.setRLevel(inputStep == 0 ? 11 : (inputStep % 4) > 0 ? 4
-                                                                          : 8);
         int16_t value = cvSequenceWork[inputStep];
-        rgbLedControl.setGLevelMap(value / 7, 0, 2);
-        rgbLedControl.setBLevelMap(value % 7, 0, 6);
-    }
-    else
-    {
-        rgbLedControl.setRLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 11 : 0);
-        rgbLedControl.setMenuColor(RGBLEDPWMControl::MenuColor::CYAN);
-        rgbLedControl.setMenuColorLevel(4);
+        const RGBLEDPWMControl::MenuColor cols[7] = {
+            RGBLEDPWMControl::MenuColor::GREEN,
+            RGBLEDPWMControl::MenuColor::BLUE,
+            RGBLEDPWMControl::MenuColor::GREEN,
+            RGBLEDPWMControl::MenuColor::YELLOW,
+            RGBLEDPWMControl::MenuColor::RED,
+            RGBLEDPWMControl::MenuColor::GREEN,
+            RGBLEDPWMControl::MenuColor::BLUE
+        };
+        const int8_t levels[3] = {4, 8, 11};
+
+        rgbLedControl.setMenuColor(cols[value % 7]);
+        rgbLedControl.setMenuColorLevel(levels[value / 7]);
     }
 }
 
