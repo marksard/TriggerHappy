@@ -30,6 +30,14 @@
 #include "lib/MiniOsc.hpp"
 #include "TriggerOutManager.hpp"
 
+enum SelectMode
+{
+    TRIGGER = OUT_COUNT - 1,
+    CV,
+    TAP_TEMPO,
+    MAX = TAP_TEMPO
+};
+
 enum ButtonCondition
 {
     // 各ボタンの押下状態と各ボタンの組み合わせ
@@ -74,29 +82,39 @@ static EdgeChecker clockEdge;
 static TriggerOutManager triggerOutManager;
 static Quantizer quantizer(PWM_RESO);
 static MiniOsc internalClock;
-static volatile bool useInternalClock = false;
 static bool settingMode = false;
 static EEPROMConfigIO<SystemConfig> systemConfig(0);
 
 // test
 #define STEP_COUNT 16
 static int8_t stepTriggers[OUT_COUNT][STEP_COUNT] = {
-    {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
     {1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
     {1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0},
+    {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
+    {0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0},
     {0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1},
-    {1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1},
-    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
+    {1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0},
+};
 static int8_t stepTriggerCurrent[OUT_COUNT] = {0};
 static int8_t currentStep = 0;
-static bool cvInputMode = false;
+static SelectMode selectMode = SelectMode::TRIGGER;
 static int16_t cvSequence[STEP_COUNT] = {
     7, 3, 7, 7, 1, 0, 7, 14,
     0, 7, 7, 14, 0, 7, 14, 4};
 static int8_t cvSequenceCurrent = 0;
 static int8_t stepTriggerWork[STEP_COUNT] = {0};
-static int8_t cvSequenceWork[STEP_COUNT] = 
+static int8_t cvSequenceWork[STEP_COUNT] =
     {7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7};
+static bool isRec = false;
+static int16_t selectCh = 0;
+static int16_t inputStep = 0;
+static bool requiredUpdateTriggers = false;
+static bool requiredUpdateCVSeq = false;
+static bool requiredReset = false;
+static int8_t gateDuration = 2;
+
+static bool tapTempoMode = false;
+static int8_t selectModeIndex = 0;
 
 //////////////////////////////////////////
 
@@ -112,15 +130,55 @@ vs constrainCyclic(vs value, vs min, vs max)
 
 //////////////////////////////////////////
 
+void confirmStepTrigger()
+{
+    inputStep = 0;
+    isRec = false;
+    for (int i = 0; i < STEP_COUNT; ++i)
+    {
+        stepTriggers[selectCh][i] = stepTriggerWork[i];
+        stepTriggerWork[i] = 0;
+    }
+}
+
+void confirmCVSequence()
+{
+    inputStep = 0;
+    isRec = false;
+    for (int i = 0; i < STEP_COUNT; ++i)
+    {
+        cvSequence[i] = cvSequenceWork[i];
+        cvSequenceWork[i] = 7;
+    }
+}
+
 void process(int16_t dataInValue)
 {
+
+    if (tapTempoMode)
+    {
+        static volatile ulong lastTime = 0;
+        ulong currentTime = micros();
+        int duration = clockEdge.getDurationMicros();
+        if (currentTime - lastTime > duration)
+        {
+            lastTime = currentTime;
+            clockEdgeLatch = true;
+        }
+        else
+        {
+            clockEdgeLatch = false;
+        }
+    }
+
     if (clockEdgeLatch)
     {
         clockEdgeLatch = false;
         for (int i = 0; i < OUT_COUNT; ++i)
         {
             int8_t onset = stepTriggers[i][stepTriggerCurrent[i]];
-            triggerOutManager.out(i)->setDuration(clockEdge.getDurationMills() >> 2);
+            int duration = clockEdge.getDurationMills() >> gateDuration;
+            triggerOutManager.out(i)->setDuration(duration);
             onset = triggerOutManager.out(i)->getTriggerGate(onset > 0 ? 1 : 0, onset == 2 ? 0 : 1);
             triggerOutManager.out(i)->set(onset);
 
@@ -147,10 +205,35 @@ void process(int16_t dataInValue)
             cvSequenceCurrent = 0;
         }
 
+        if (currentStep + 1 > STEP_COUNT - 1)
+        {
+            if (requiredUpdateTriggers)
+            {
+                confirmStepTrigger();
+                requiredUpdateTriggers = false;
+            }
+            if (requiredUpdateCVSeq)
+            {
+                confirmCVSequence();
+                requiredUpdateCVSeq = false;
+            }
+        }
+
         currentStep = constrainCyclic(currentStep + 1, 0, STEP_COUNT - 1);
     }
     else
     {
+        if (requiredReset)
+        {
+            requiredReset = false;
+            currentStep = 0;
+            cvSequenceCurrent = 0;
+            for (int i = 0; i < OUT_COUNT; ++i)
+            {
+                stepTriggerCurrent[i] = 0;
+            }
+        }
+
         for (int i = 0; i < OUT_COUNT; ++i)
         {
             triggerOutManager.out(i)->update(0);
@@ -160,25 +243,12 @@ void process(int16_t dataInValue)
     triggerOutManager.process();
 }
 
-void confirmStepTrigger(int16_t &inputStep, bool &isRec, int16_t selectCh)
-{
-    inputStep = 0;
-    isRec = false;
-    for (int i = 0; i < STEP_COUNT; ++i)
-    {
-        stepTriggers[selectCh][i] = stepTriggerWork[i];
-        stepTriggerWork[i] = 0;
-    }
-}
-
 void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
 {
-    static bool isRec = false;
-    static int16_t selectCh = 0;
-    static int16_t inputStep = 0;
-
     if (isRec == false)
     {
+        rgbLedControl.resetFreq();
+
         if (buttonStates == ButtonCondition::UA)
         {
         }
@@ -192,16 +262,10 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
         }
         else if (buttonStates == ButtonCondition::URE)
         {
-            currentStep = 0;
-            cvSequenceCurrent = 0;
-            for (int i = 0; i < OUT_COUNT; ++i)
-            {
-                stepTriggerCurrent[i] = 0;
-            }
+            requiredReset = true;
         }
         else if (buttonStates == ButtonCondition::HM_URE)
         {
-            cvInputMode = true;
         }
         else if (buttonStates == ButtonCondition::HA_HB)
         {
@@ -217,7 +281,6 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
         }
         else if (buttonStates == ButtonCondition::NONE)
         {
-            selectCh = constrain(selectCh + encValue, 0, OUT_COUNT - 1);
         }
 
         const RGBLEDPWMControl::MenuColor cols[6] = {
@@ -227,11 +290,15 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
             RGBLEDPWMControl::MenuColor::YELLOW,
             RGBLEDPWMControl::MenuColor::RED,
             RGBLEDPWMControl::MenuColor::RED};
-        const int8_t levels[6] = {4, 8, 4, 8, 4, 8};
+        const int8_t levels[6] = {5, 8, 5, 8, 5, 8};
 
-        rgbLedControl.setBLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 11 : 0);
+        rgbLedControl.setBLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 4 : 0);
         rgbLedControl.setMenuColor(cols[selectCh]);
         rgbLedControl.setMenuColorLevel(levels[selectCh]);
+    }
+    else if (requiredUpdateTriggers)
+    {
+        rgbLedControl.setBlink();
     }
     else
     {
@@ -241,7 +308,7 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
             inputStep += 1;
             if (inputStep > STEP_COUNT - 1)
             {
-                confirmStepTrigger(inputStep, isRec, selectCh);
+                requiredUpdateTriggers = true;
             }
         }
         else if (buttonStates == ButtonCondition::UB)
@@ -250,13 +317,13 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
             inputStep += 1;
             if (inputStep > STEP_COUNT - 1)
             {
-                confirmStepTrigger(inputStep, isRec, selectCh);
+                requiredUpdateTriggers = true;
             }
         }
         else if (buttonStates == ButtonCondition::UMODE)
         {
             stepTriggerWork[inputStep] = -1;
-            confirmStepTrigger(inputStep, isRec, selectCh);
+            requiredUpdateTriggers = true;
         }
         else if (buttonStates == ButtonCondition::URE)
         {
@@ -264,7 +331,7 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
             inputStep += 1;
             if (inputStep > STEP_COUNT - 1)
             {
-                confirmStepTrigger(inputStep, isRec, selectCh);
+                requiredUpdateTriggers = true;
             }
         }
         else if (buttonStates == ButtonCondition::HM_URE)
@@ -286,29 +353,19 @@ void receptOperationTriggers(uint16_t buttonStates, int8_t encValue)
         {
         }
 
-        rgbLedControl.setBLevel(inputStep == 0 ? 8 : (inputStep % 4) > 0 ? 4
-                                                                          : 6);
-    }
-}
-
-void confirmCVSequence(int16_t &inputStep, bool &isRec)
-{
-    inputStep = 0;
-    isRec = false;
-    for (int i = 0; i < STEP_COUNT; ++i)
-    {
-        cvSequence[i] = cvSequenceWork[i];
-        cvSequenceWork[i] = 7;
+        rgbLedControl.setBLevel(inputStep == 0 ? 8 : (inputStep % 4) > 0 ? 5
+                                                                         : 8);
     }
 }
 
 void receptOperationCV(uint16_t buttonStates, int8_t encValue)
 {
-    static bool isRec = false;
-    static int16_t inputStep = 0;
+    static bool isOctUp = false;
 
     if (isRec == false)
     {
+        rgbLedControl.resetFreq();
+
         if (buttonStates == ButtonCondition::UA)
         {
         }
@@ -322,16 +379,10 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
         }
         else if (buttonStates == ButtonCondition::URE)
         {
-            currentStep = 0;
-            cvSequenceCurrent = 0;
-            for (int i = 0; i < OUT_COUNT; ++i)
-            {
-                stepTriggerCurrent[i] = 0;
-            }
+            requiredReset = true;
         }
         else if (buttonStates == ButtonCondition::HM_URE)
         {
-            cvInputMode = false;
         }
         else if (buttonStates == ButtonCondition::HA_HB)
         {
@@ -349,35 +400,54 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
         {
         }
 
-        rgbLedControl.setRLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 11 : 0);
+        rgbLedControl.setRLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 4 : 0);
         rgbLedControl.setMenuColor(RGBLEDPWMControl::MenuColor::CYAN);
         rgbLedControl.setMenuColorLevel(4);
+    }
+    else if (requiredUpdateCVSeq)
+    {
+        rgbLedControl.setBlink();
     }
     else
     {
         if (buttonStates == ButtonCondition::UA)
         {
             inputStep += 1;
+            isOctUp = false;
+            rgbLedControl.resetFreq();
             if (inputStep > STEP_COUNT - 1)
             {
-                confirmCVSequence(inputStep, isRec);
+                requiredUpdateCVSeq = true;
             }
         }
         else if (buttonStates == ButtonCondition::UB)
         {
             inputStep -= 1;
+            isOctUp = false;
+            rgbLedControl.resetFreq();
             if (inputStep > STEP_COUNT - 1)
             {
-                confirmCVSequence(inputStep, isRec);
+                requiredUpdateCVSeq = true;
             }
         }
         else if (buttonStates == ButtonCondition::UMODE)
         {
             cvSequenceWork[inputStep] = -1;
-            confirmCVSequence(inputStep, isRec);
+            isOctUp = false;
+            rgbLedControl.resetFreq();
+            requiredUpdateCVSeq = true;
         }
         else if (buttonStates == ButtonCondition::URE)
         {
+            isOctUp = isOctUp ? false : true;
+            if (isOctUp)
+            {
+                rgbLedControl.setBlink();
+            }
+            else
+            {
+                rgbLedControl.resetFreq();
+            }
         }
         else if (buttonStates == ButtonCondition::HM_URE)
         {
@@ -396,7 +466,7 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
         }
         else if (buttonStates == ButtonCondition::NONE)
         {
-            cvSequenceWork[inputStep] = constrain(cvSequenceWork[inputStep] + encValue, 0, 14);
+            cvSequenceWork[inputStep] = constrain(cvSequenceWork[inputStep] + encValue, 0, 14) + (isOctUp ? 7 : 0);
         }
 
         int16_t value = cvSequenceWork[inputStep];
@@ -407,20 +477,68 @@ void receptOperationCV(uint16_t buttonStates, int8_t encValue)
             RGBLEDPWMControl::MenuColor::YELLOW,
             RGBLEDPWMControl::MenuColor::RED,
             RGBLEDPWMControl::MenuColor::GREEN,
-            RGBLEDPWMControl::MenuColor::BLUE
-        };
-        const int8_t levels[3] = {4, 8, 11};
+            RGBLEDPWMControl::MenuColor::BLUE};
+        const int8_t levels[4] = {4, 6, 10, 11};
 
         rgbLedControl.setMenuColor(cols[value % 7]);
         rgbLedControl.setMenuColorLevel(levels[value / 7]);
     }
 }
 
+void receptOperationTapTempo(uint16_t buttonStates, int8_t encValue)
+{
+    if (buttonStates == ButtonCondition::UA)
+    {
+        if (tapTempoMode)
+        {
+            clockEdge.updateEdge(1);
+            clockEdge.updateEdge(0);
+        }
+    }
+    else if (buttonStates == ButtonCondition::UB)
+    {
+    }
+    else if (buttonStates == ButtonCondition::UMODE)
+    {
+        tapTempoMode = tapTempoMode ? false : true;
+    }
+    else if (buttonStates == ButtonCondition::URE)
+    {
+    }
+    else if (buttonStates == ButtonCondition::HM_URE)
+    {
+    }
+    else if (buttonStates == ButtonCondition::HA_HB)
+    {
+    }
+    else if (buttonStates == ButtonCondition::HA)
+    {
+    }
+    else if (buttonStates == ButtonCondition::HB)
+    {
+        gateDuration = constrain(gateDuration + encValue, 1, 6);
+        rgbLedControl.setGLevelMap(gateDuration, 1, 6);
+
+        // Serial.print(" Gate:");
+        // Serial.println(gateDuration);
+    }
+    else if (buttonStates == ButtonCondition::HM)
+    {
+    }
+    else if (buttonStates == ButtonCondition::NONE)
+    {
+    }
+    
+    rgbLedControl.setBLevel(currentStep == 0 || currentStep == (STEP_COUNT - 1) ? 4 : 0);
+    rgbLedControl.setMenuColor(RGBLEDPWMControl::MenuColor::BLUE);
+    rgbLedControl.setMenuColorLevel(8);
+}
+
 //////////////////////////////////////////
 
 void edgeCallback(uint gpio, uint32_t events)
 {
-    if (gpio == CLOCK && useInternalClock == false)
+    if (gpio == CLOCK && tapTempoMode == false)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
         {
@@ -542,13 +660,44 @@ void loop1()
     // ButtonCondition用にまとめる
     uint16_t buttonStates = (btnMode << 12) + (btnA << 8) + (btnB << 4) + btnRE;
 
-    if (cvInputMode == false)
+
+    if (buttonStates == ButtonCondition::NONE && isRec == false)
     {
-        receptOperationTriggers(buttonStates, encValue);
+        if (selectModeIndex + encValue <= SelectMode::TRIGGER)
+        {
+            selectMode = SelectMode::TRIGGER;
+        }
+        else if (selectModeIndex + encValue == SelectMode::CV)
+        {
+            selectMode = SelectMode::CV;
+        }
+        else if (selectModeIndex + encValue == SelectMode::TAP_TEMPO)
+        {
+            selectMode = SelectMode::TAP_TEMPO;
+        }
+        selectCh = constrain(selectCh + encValue, 0, OUT_COUNT - 1);
+        selectModeIndex = constrain(selectModeIndex + encValue, 0, SelectMode::MAX);
     }
-    else
+
+    // static int8_t encValueLast = 0;
+    // if (encValue != encValueLast)
+    // {
+    //     encValueLast = encValue;
+    //     Serial.print(" encValue:");
+    //     Serial.println(encValue);
+    // }
+
+    switch (selectMode)
     {
+    case SelectMode::TRIGGER:
+        receptOperationTriggers(buttonStates, encValue);
+        break;
+    case SelectMode::CV:
         receptOperationCV(buttonStates, encValue);
+        break;
+    case SelectMode::TAP_TEMPO:
+        receptOperationTapTempo(buttonStates, encValue);
+        break;
     }
 
     rgbLedControl.update();
