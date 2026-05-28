@@ -88,7 +88,7 @@ static EEPROMConfigIO<SystemConfig> systemConfig(0);
 // test
 #define STEP_COUNT 16
 static int8_t stepTriggers[OUT_COUNT][STEP_COUNT] = {
-    {1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1},
+    {2, 1, 1, 0, 1, 1, 0, 2, 1, 1, 1, 0, 1, 1, 0, 1},
     {1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0},
     {0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0},
     {0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0},
@@ -99,8 +99,8 @@ static int8_t stepTriggerCurrent[OUT_COUNT] = {0};
 static int8_t currentStep = 0;
 static SelectMode selectMode = SelectMode::TRIGGER;
 static int16_t cvSequence[STEP_COUNT] = {
-    7, 3, 7, 7, 1, 0, 7, 14,
-    0, 7, 7, 14, 0, 7, 14, 4};
+    14,  0,  7,  6,  2,  3,  4, 11,
+    14,  0,  7,  6,  2,  3,  0,  8};
 static int8_t cvSequenceCurrent = 0;
 static int8_t stepTriggerWork[STEP_COUNT] = {0};
 static int8_t cvSequenceWork[STEP_COUNT] =
@@ -582,7 +582,7 @@ void interruptPWM()
 
 void setup()
 {
-    analogReadResolution(ADC_BIT);
+    set_sys_clock_hz(CPU_CLOCK, true);
     pinMode(23, OUTPUT);
     gpio_put(23, HIGH);
 
@@ -666,6 +666,7 @@ void loop1()
         if (selectModeIndex + encValue <= SelectMode::TRIGGER)
         {
             selectMode = SelectMode::TRIGGER;
+            selectCh = constrain(selectModeIndex + encValue, 0, OUT_COUNT - 1);
         }
         else if (selectModeIndex + encValue == SelectMode::CV)
         {
@@ -675,7 +676,6 @@ void loop1()
         {
             selectMode = SelectMode::TAP_TEMPO;
         }
-        selectCh = constrain(selectCh + encValue, 0, OUT_COUNT - 1);
         selectModeIndex = constrain(selectModeIndex + encValue, 0, SelectMode::MAX);
     }
 

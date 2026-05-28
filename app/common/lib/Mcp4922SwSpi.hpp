@@ -30,12 +30,12 @@ public:
         gpio_put(_selectPin, HIGH);
     }
 
-    void writeA(uint16_t value)
+    void out1(uint16_t value)
     {
         transfer(0x3000 | value);
     }
 
-    void writeB(uint16_t value)
+    void out2(uint16_t value)
     {
         transfer(0xB000 | value);
     }
