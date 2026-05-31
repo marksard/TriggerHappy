@@ -43,6 +43,12 @@ enum Algorithm
     MAX
 };
 
+enum DataInMode
+{
+    DIGITAL,
+    ANALOG,
+};
+
 enum ButtonCondition {
     // 各ボタンの押下状態と各ボタンの組み合わせ
     // Button State: 0:None 1:Button down 2:Button up 3:Holding 4:Holded
@@ -67,8 +73,6 @@ enum ButtonCondition {
 static uint interruptSliceNum;
 static RotaryEncoder enc;
 static Button buttons[4];
-static SmoothAnalogRead clockIn;
-static SmoothAnalogRead resetIn;
 static SmoothAnalogRead dataIn;
 static RGBLEDPWMControl rgbLedControl;
 static RGBLEDPWMControl::MenuColor menuColor = RGBLEDPWMControl::MenuColor::RED;
@@ -116,6 +120,24 @@ vs constrainCyclic(vs value, vs min, vs max)
 
 //////////////////////////////////////////
 
+void edgeCallback(uint gpio, uint32_t events);
+void setDataInMode(DataInMode mode)
+{
+    gpio_deinit(DATA);
+    if (mode == DataInMode::DIGITAL)
+    {
+        pinMode(DATA, INPUT);
+        gpio_set_irq_enabled_with_callback(DATA, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true, edgeCallback);
+    }
+    else
+    {
+        gpio_set_irq_enabled(DATA, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, false);
+        dataIn.init(DATA);
+    }
+
+    dataEdgeLatch = false;
+}
+
 inline bool isReady()
 {
     return clockEdgeLatch;
@@ -137,12 +159,14 @@ void changeAlgorithm(uint8_t addValue)
         algoSubModeIndex = 0;
         menuColor = RGBLEDPWMControl::MenuColor::RED;
         rgbLedControl.setMenuColor(menuColor);
+        setDataInMode(DataInMode::ANALOG);
         triggerOutManager.initPins();
         break;
     case Algorithm::SHIFT_REGISTER:
         algoSubModeIndex = 0;
         menuColor = shiftRegister.getRandomDataMode() ? RGBLEDPWMControl::MenuColor::WHITE : RGBLEDPWMControl::MenuColor::GREEN;
         rgbLedControl.setMenuColor(menuColor);
+        setDataInMode(DataInMode::DIGITAL);
         triggerOutManager.initPins();
         shiftRegister.reset();
         break;
@@ -150,11 +174,13 @@ void changeAlgorithm(uint8_t addValue)
         algoSubModeIndex = 0;
         menuColor = RGBLEDPWMControl::MenuColor::BLUE;
         rgbLedControl.setMenuColor(menuColor);
+        setDataInMode(DataInMode::ANALOG);
         triggerOutManager.initPins();
         break;
     default:
         menuColor = RGBLEDPWMControl::MenuColor::WHITE;
         rgbLedControl.setMenuColor(menuColor);
+        setDataInMode(DataInMode::ANALOG);
         break;
     }
 }
@@ -740,9 +766,6 @@ void setup()
     buttons[2].setHoldTime(500);
     buttons[3].init(BTN_MODE);
     buttons[3].setHoldTime(350);
-    clockIn.init(CLOCK);
-    resetIn.init(RESET);
-    dataIn.init(DATA);
     clockEdge.init(CLOCK); // clockエッジ期間計測のみで利用
     triggerOutManager.init();
 
@@ -833,19 +856,19 @@ void setup()
     
     initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
 
+    pinMode(CLOCK, INPUT);
+    pinMode(RESET, INPUT);
     gpio_set_irq_enabled(CLOCK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(RESET, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
-    gpio_set_irq_enabled(DATA, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_callback(edgeCallback);
     irq_set_enabled(IO_IRQ_BANK0, true);
+
+    setDataInMode(DataInMode::ANALOG);
 }
 
 void loop()
 {
     int8_t encValue = enc.getDirection();
-    int16_t dataInValue = dataIn.analogReadDirectFast();
-    // int16_t resetInValue = resetIn.analogReadDirectFast();
-    // int16_t clockInValue = clockIn.analogReadDirectFast();
 
     bool ready = isReady();
     switch (algorithm)
@@ -856,7 +879,10 @@ void loop()
             stepSeqEuclid.processStepSeq(&requestGenerateSequence, NULL, NULL);
             clockEdgeLatch = false;
         }
-        clockDivider.process(useInternalClock, ready, dataInValue);
+        {
+            int16_t dataInValue = dataIn.analogReadDirectFast();
+            clockDivider.process(useInternalClock, ready, dataInValue);
+        }
         break;
     case Algorithm::SHIFT_REGISTER:
         if (ready)
@@ -875,10 +901,16 @@ void loop()
         {
             requestGenerateSequence = true;
         }
-        stepSeqEuclid.process(ready, &requestGenerateSequence, dataInValue);
+        {
+            int16_t dataInValue = dataIn.analogReadDirectFast();
+            stepSeqEuclid.process(ready, &requestGenerateSequence, dataInValue);
+        }
         break;
     default:
-        processAdjusting(dataInValue);
+        {
+            int16_t dataInValue = dataIn.analogReadDirectFast();
+            processAdjusting(dataInValue);
+        }
         break;
     }
 
