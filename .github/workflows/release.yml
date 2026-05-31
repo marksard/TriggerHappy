@@ -29,14 +29,18 @@ jobs:
       - name: Build project
         run: |
           platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
+          platformio run -e waveshare_rp2040_zero -d app/HexBitr
 
       - name: Rename firmware.uf2
         run: |
           cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 TriggerHappy.uf2
+          cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 HexBitr.uf2
 
       - name: Upload Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
-          files: TriggerHappy.uf2
+          files: |
+            TriggerHappy.uf2
+            HexBitr.uf2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
