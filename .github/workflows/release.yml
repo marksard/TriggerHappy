@@ -34,9 +34,9 @@ jobs:
       - name: Rename firmware.uf2
         run: |
           cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 TriggerHappy.uf2
-          cp app/TriggerHappy/manual/TriggerHappy Operation Manual.pdf
+          cp app/TriggerHappy/manual/TriggerHappyOperationManual.pdf TriggerHappyOperationManual.pdf
           cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 HexBitr.uf2
-          cp app/HexBitr/manual/HexBitr Operation Manual.pdf
+          cp app/HexBitr/manual/HexBitrOperationManual.pdf HexBitrOperationManual.pdf
 
       - name: Upload Release to GitHub
         uses: softprops/action-gh-release@v2
