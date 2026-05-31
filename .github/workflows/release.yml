@@ -43,6 +43,8 @@ jobs:
         with:
           files: |
             TriggerHappy.uf2
+            TriggerHappyOperationManual.pdf
             HexBitr.uf2
+            HexBitrOperationManual.pdf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
