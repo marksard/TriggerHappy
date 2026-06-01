@@ -28,10 +28,12 @@ jobs:
       - name: Build project (env:waveshare_rp2040_zero)
         run: |
           platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
+          platformio run -e waveshare_rp2040_zero -d app/HexBitr
 
-      - name: Rename firmware.uf2 to TriggerHappy.uf2
+      - name: Rename .uf2
         run: |
           cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 app/TriggerHappy/TriggerHappy.uf2
+          cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 app/HexBitr/HexBitr.uf2
 
       - name: Create timestamp tag
         run: |
@@ -47,3 +49,9 @@ jobs:
         with:
           name: TriggerHappy
           path: app/TriggerHappy/TriggerHappy.uf2
+
+      - name: Upload HexBitr.uf2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HexBitr
+          path: app/HexBitr/HexBitr.uf2
