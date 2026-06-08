@@ -100,12 +100,11 @@ public:
 
         bool multiply = false;
         uint8_t factor = 2;
+        uint8_t no = 0;
 
         PulseMode pulseMode = PulseMode::GATE_50;
-
         uint32_t phase = 0;
         uint32_t lastUpdateUs = 0;
-
         bool outputState = false;
         uint32_t pulseOffTimeUs = 0;
 
@@ -138,20 +137,22 @@ public:
 
         lastClockUs = now;
 
-        for (auto &ch : channels)
+        for (int8_t no = 0; auto &ch : channels)
         {
             ch.phase = 0;
             ch.lastUpdateUs = now;
             ch.outputState = false;
             ch.pulseOffTimeUs = 0;
+            ch.no = no;
+            no++;
         }
     }
 
     void allAddPulseMode(int8_t delta)
     {
-        for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++)
+        for (auto &ch : channels)
         {
-            channels[ch].addPulseMode(delta);
+            ch.addPulseMode(delta);
         }
     }
 
@@ -195,58 +196,56 @@ public:
         {
             resetPending = false;
 
-            for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++)
+            for (auto &ch : channels)
             {
-                channels[ch].phase = 0;
-                channels[ch].lastUpdateUs = now;
+                ch.phase = 0;
+                ch.lastUpdateUs = now;
 
-                if (channels[ch].outputState)
+                if (ch.outputState)
                 {
-                    channels[ch].outputState = false;
-                    onOutputLow(ch);
+                    ch.outputState = false;
+                    onOutputLow(ch.no);
                 }
             }
         }
 
-        for (uint8_t ch = 0; ch < NUM_CHANNELS; ch++)
+        for (auto &ch : channels)
         {
-            auto &c = channels[ch];
-
-            if (c.multiply)
+            if (ch.multiply)
             {
                 uint32_t intervalUs =
-                    clockPeriodUs / c.factor;
+                    clockPeriodUs / ch.factor;
 
-                fireEvent(ch, now, intervalUs);
+                fireEvent(ch.no, now, intervalUs);
 
                 // Hard Sync
-                c.phase = 0;
-                c.lastUpdateUs = now;
+                ch.phase = 0;
+                ch.lastUpdateUs = now;
             }
             else
             {
                 uint64_t increment =
-                    PHASE_SCALE / c.factor;
+                    PHASE_SCALE / ch.factor;
 
                 uint64_t sum =
-                    (uint64_t)c.phase +
+                    (uint64_t)ch.phase +
                     increment;
 
                 uint32_t overflowCount =
                     sum >> 32;
 
-                c.phase =
+                ch.phase =
                     (uint32_t)sum;
 
                 uint32_t intervalUs =
-                    clockPeriodUs * c.factor;
+                    clockPeriodUs * ch.factor;
 
                 for (uint32_t i = 0;
                      i < overflowCount;
                      i++)
                 {
                     fireEvent(
-                        ch,
+                        ch.no,
                         now,
                         intervalUs);
                 }
@@ -278,81 +277,73 @@ public:
             {
                 clockRunning = false;
 
-                for (uint8_t ch = 0;
-                     ch < NUM_CHANNELS;
-                     ch++)
+                for (auto &ch : channels)
                 {
-                    auto &c = channels[ch];
+                    ch.phase = 0;
+                    ch.lastUpdateUs = now;
 
-                    c.phase = 0;
-                    c.lastUpdateUs = now;
-
-                    if (c.outputState)
+                    if (ch.outputState)
                     {
-                        c.outputState = false;
-                        onOutputLow(ch);
+                        ch.outputState = false;
+                        onOutputLow(ch.no);
                     }
                 }
             }
         }
 
-        for (uint8_t ch = 0;
-             ch < NUM_CHANNELS;
-             ch++)
+        for (auto &ch : channels)
         {
-            auto &c = channels[ch];
-
             //
             // Pulse OFF
             //
-            if (c.outputState)
+            if (ch.outputState)
             {
-                if ((int32_t)(now - c.pulseOffTimeUs) >= 0)
+                if ((int32_t)(now - ch.pulseOffTimeUs) >= 0)
                 {
-                    c.outputState = false;
-                    onOutputLow(ch);
+                    ch.outputState = false;
+                    onOutputLow(ch.no);
                 }
             }
 
             //
             // Multiply DDS
             //
-            if (!c.multiply)
+            if (!ch.multiply)
                 continue;
 
             if (!clockRunning)
                 continue;
 
             uint32_t dt =
-                now - c.lastUpdateUs;
+                now - ch.lastUpdateUs;
 
-            c.lastUpdateUs = now;
+            ch.lastUpdateUs = now;
 
             uint64_t increment =
                 (PHASE_SCALE *
-                 (uint64_t)c.factor *
+                 (uint64_t)ch.factor *
                  (uint64_t)dt) /
                 clockPeriodUs;
 
             uint64_t sum =
-                (uint64_t)c.phase +
+                (uint64_t)ch.phase +
                 increment;
 
             uint32_t overflowCount =
                 sum >> 32;
 
-            c.phase =
+            ch.phase =
                 (uint32_t)sum;
 
             uint32_t intervalUs =
-                clockPeriodUs / c.factor;
+                clockPeriodUs / ch.factor;
 
             for (uint32_t i = 0;
                  i < overflowCount;
                  i++)
             {
                 fireEvent(
-                    ch,
+                    ch.no,
                     now,
                     intervalUs);
             }
@@ -391,35 +382,29 @@ private:
     /// @details
     /// PulseModeに応じたパルス生成を行う。
     void fireEvent(
-        uint8_t ch,
+        uint8_t no,
         uint32_t now,
         uint32_t intervalUs)
     {
-        auto &c = channels[ch];
+        auto &ch = channels[no];
 
-        switch (c.pulseMode)
+        switch (ch.pulseMode)
         {
         case PulseMode::TRIGGER:
         {
-            c.outputState = true;
-
-            c.pulseOffTimeUs =
+            ch.outputState = true;
+            ch.pulseOffTimeUs =
                 now + triggerWidthUs;
-
-            onOutputHigh(ch);
-
+            onOutputHigh(no);
             break;
         }
 
         case PulseMode::GATE_50:
         {
-            c.outputState = true;
-
-            c.pulseOffTimeUs =
-                now + (intervalUs / 2);
-
-            onOutputHigh(ch);
-
+            ch.outputState = true;
+            ch.pulseOffTimeUs =
+                now + (intervalUs >> 1);
+            onOutputHigh(no);
             break;
         }
         }
