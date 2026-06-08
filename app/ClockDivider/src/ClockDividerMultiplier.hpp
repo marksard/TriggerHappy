@@ -137,7 +137,8 @@ public:
 
         lastClockUs = now;
 
-        for (int8_t no = 0; auto &ch : channels)
+        int8_t no = 0;
+        for (auto &ch : channels)
         {
             ch.phase = 0;
             ch.lastUpdateUs = now;
