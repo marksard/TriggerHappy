@@ -1,12 +1,35 @@
-#pragma once
+/*!
+ * ClockDividerMultiplier class
+ * Copyright 2026 marksard
+ * This software is released under the MIT license.
+ * see https://opensource.org/licenses/MIT
+ */
+
+ #pragma once
 
 #include <stdint.h>
 #include "pico/stdlib.h"
 
+/// @brief Clock Divider / Multiplier
+/// @details
+/// 入力クロックを基準に、各チャンネルごとに
+/// Divide(分周)またはMultiply(逓倍)されたクロックを生成する。
+///
+/// Multiply動作はDDS(Direct Digital Synthesis)方式を使用する。
+///
+/// 特徴:
+/// - チャンネルごとに独立したDivide / Multiply設定
+/// - チャンネルごとに独立した倍率設定
+/// - Trigger出力または50% Gate出力
+/// - RESET入力対応
+/// - CLOCK入力停止時の自動タイムアウト停止
+///
+/// RESET入力を受けると、次回CLOCK立ち上がり時に
+/// 全チャンネルの位相をリセットする。
 class ClockDividerMultiplier
 {
 public:
-    static constexpr uint8_t NUM_CHANNELS = 6;
+    static constexpr uint8_t NUM_CHANNELS = 3;
     static constexpr uint64_t PHASE_SCALE = 0x100000000ULL;
 
     enum class PulseMode : uint8_t
@@ -15,9 +38,11 @@ public:
         GATE_50
     };
 
+    /// @brief チャンネル設定
     struct Channel
     {
-        static constexpr uint8_t FACTORS[] = {2, 3, 4, 5, 6, 7, 8, 12, 16, 32};
+        /// @brief 選択可能な倍率テーブル
+        static constexpr uint8_t FACTORS[] = {1, 2, 3, 4, 5, 6, 7, 8, 12, 16};
         static constexpr uint8_t NUM_FACTORS = sizeof(FACTORS) / sizeof(FACTORS[0]);
         uint8_t factorIndex = 0;
         bool multiply = false;
@@ -84,16 +109,24 @@ public:
         }
     }
 
+    /// @brief Triggerモード時のパルス幅設定
+    /// @param us パルス幅[us]
     void setTriggerWidthUs(uint32_t us)
     {
         triggerWidthUs = us;
     }
 
+    /// @brief RESET入力立ち上がり通知
+    /// @details
+    /// 実際のリセットは次回CLOCK入力時に行われる。
     void onResetRise()
     {
         resetPending = true;
     }
 
+    /// @brief CLOCK入力立ち上がり通知
+    /// @details
+    /// クロック周期測定とDivide/Multiplyイベント生成を行う。
     void onClockRise()
     {
         uint32_t now = time_us_32();
@@ -175,6 +208,14 @@ public:
         }
     }
 
+    /// @brief メイン更新処理
+    /// @details
+    /// メインループから周期的に呼び出す。
+    ///
+    /// 以下を処理する:
+    /// - CLOCKタイムアウト監視
+    /// - パルスOFF処理
+    /// - Multiply用DDS更新
     void update()
     {
         uint32_t now = time_us_32();
@@ -273,10 +314,18 @@ public:
     }
 
 protected:
+    /// @brief 出力をHIGHにする
+    /// @param ch チャンネル番号
+    /// @details
+    /// 継承先でgpio_put()などを実装する。
     virtual void onOutputHigh(uint8_t ch)
     {
     }
 
+    /// @brief 出力をLOWにする
+    /// @param ch チャンネル番号
+    /// @details
+    /// 継承先でgpio_put()などを実装する。
     virtual void onOutputLow(uint8_t ch)
     {
     }
@@ -289,6 +338,12 @@ private:
     bool resetPending = false;
     bool clockRunning = false;
 
+    /// @brief 出力イベント発生
+    /// @param ch チャンネル番号
+    /// @param now 現在時刻[us]
+    /// @param intervalUs 出力周期[us]
+    /// @details
+    /// PulseModeに応じたパルス生成を行う。
     void fireEvent(
         uint8_t ch,
         uint32_t now,

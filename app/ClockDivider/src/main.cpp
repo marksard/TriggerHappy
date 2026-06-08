@@ -57,9 +57,11 @@ static EEPROMConfigIO<SystemConfig> systemConfig(0);
 // 機能
 static int8_t trigModeIndex = 0;
 static EdgeChecker clockEdge;
+static EdgeChecker resetEdge;
+static EdgeChecker dataEdge;
 static TriggerOutManager triggerOutManager;
 
-class ClockDividerMultiplierImpl : public ClockDividerMultiplier
+class ClockDiviImplA : public ClockDividerMultiplier
 {
 private:
     void onOutputHigh(uint8_t ch) override
@@ -72,7 +74,21 @@ private:
         triggerOutManager.out(ch)->set(0);
     }
 };
-ClockDividerMultiplierImpl clockDivMulti;
+ClockDiviImplA clockDivA;
+class ClockDiviImplB : public ClockDividerMultiplier
+{
+private:
+    void onOutputHigh(uint8_t ch) override
+    {
+        triggerOutManager.out(ch + 3)->set(1);
+    }
+
+    void onOutputLow(uint8_t ch) override
+    {
+        triggerOutManager.out(ch + 3)->set(0);
+    }
+};
+ClockDiviImplB clockDivB;
 
 //////////////////////////////////////////
 
@@ -124,7 +140,9 @@ void setup()
     buttons[2].setHoldTime(500);
     buttons[3].init(BTN_MODE);
     buttons[3].setHoldTime(350);
-    clockEdge.init(CLOCK); // clockエッジ期間計測のみで利用
+    clockEdge.init(CLOCK);
+    resetEdge.init(RESET);
+    dataEdge.init(DATA, 2000);
     triggerOutManager.init();
 
     rgbLedControl.init(20000, PWM_BIT, LED_R, LED_G, LED_B);
@@ -133,27 +151,42 @@ void setup()
     systemConfig.initEEPROM();
     systemConfig.loadUserConfig();
 
-    gpio_init(CLOCK);
-    gpio_init(RESET);
 
-    clockDivMulti.init();
-    clockDivMulti.channels[0].setFactorIndex(0);
-    clockDivMulti.channels[1].setFactorIndex(2);
-    clockDivMulti.channels[2].setFactorIndex(4);
-    clockDivMulti.channels[3].setFactorIndex(6);
-    clockDivMulti.channels[4].setFactorIndex(1);
-    clockDivMulti.channels[5].setFactorIndex(3);
+    clockDivA.init();
+    clockDivA.channels[0].setFactorIndex(0);
+    clockDivA.channels[1].setFactorIndex(1);
+    clockDivA.channels[2].setFactorIndex(3);
+    clockDivB.init();
+    clockDivB.channels[0].setFactorIndex(2);
+    clockDivB.channels[1].setFactorIndex(4);
+    clockDivB.channels[2].setFactorIndex(6);
 }
 
 void loop()
 {
     int8_t encValue = enc.getDirection();
 
+    if (resetEdge.isEdgeHigh())
+    {
+        clockDivA.onResetRise();
+        clockDivB.onResetRise();
+    }
     if (clockEdge.isEdgeHigh())
     {
-        clockDivMulti.onClockRise();
+        clockDivA.onClockRise();
+        if (! dataEdge.isAlive())
+        {
+            clockDivB.onClockRise();
+        }
     }
-    clockDivMulti.update();
+    clockDivA.update();
+
+    if (dataEdge.isEdgeHigh())
+    {
+        clockDivB.onClockRise();
+    }
+    clockDivB.update();
+
     triggerOutManager.process();
 
     rgbLedControl.process();
@@ -185,15 +218,30 @@ void loop1()
         }
         if (buttonStates == ButtonCondition::HA)
         {
-            clockDivMulti.allAddPulseMode(encValue);
+            clockDivA.allAddPulseMode(encValue);
+            clockDivB.allAddPulseMode(encValue);
         }
         else if (buttonStates == ButtonCondition::UMODE)
         {
-            clockDivMulti.channels[trigModeIndex].toggleMultiply();
+            if (trigModeIndex < 3)
+            {
+                clockDivA.channels[trigModeIndex].toggleMultiply();
+            }
+            else
+            {
+                clockDivB.channels[trigModeIndex - 3].toggleMultiply();
+            }
         }
         else if (buttonStates == ButtonCondition::NONE)
         {
-            clockDivMulti.channels[trigModeIndex].addFactor(encValue);
+            if (trigModeIndex < 3)
+            {
+                clockDivA.channels[trigModeIndex].addFactor(encValue);
+            }
+            else
+            {
+                clockDivB.channels[trigModeIndex - 3].addFactor(encValue);
+            }
         }
     }
 
