@@ -5,7 +5,7 @@
  * see https://opensource.org/licenses/MIT
  */
 
- #pragma once
+#pragma once
 
 #include <stdint.h>
 #include "pico/stdlib.h"
@@ -38,13 +38,66 @@ public:
         GATE_50
     };
 
+    enum class RatioIndex : uint8_t
+    {
+        DIV16,
+        DIV12,
+        DIV8,
+        DIV7,
+        DIV6,
+        DIV5,
+        DIV4,
+        DIV3,
+        DIV2,
+
+        MUL1,
+
+        MUL2,
+        MUL3,
+        MUL4,
+        MUL5,
+        MUL6,
+        MUL7,
+        MUL8,
+        MUL12,
+        MUL16,
+
+        COUNT
+    };
+
     /// @brief チャンネル設定
     struct Channel
     {
-        /// @brief 選択可能な倍率テーブル
-        static constexpr uint8_t FACTORS[] = {1, 2, 3, 4, 5, 6, 7, 8, 12, 16};
-        static constexpr uint8_t NUM_FACTORS = sizeof(FACTORS) / sizeof(FACTORS[0]);
-        uint8_t factorIndex = 0;
+        struct RatioInfo
+        {
+            bool multiply;
+            uint8_t factor;
+        };
+
+        static constexpr RatioInfo RATIO_TABLE[] =
+            {
+                {false, 16},
+                {false, 12},
+                {false, 8},
+                {false, 7},
+                {false, 6},
+                {false, 5},
+                {false, 4},
+                {false, 3},
+                {false, 2},
+
+                {true, 1},
+
+                {true, 2},
+                {true, 3},
+                {true, 4},
+                {true, 5},
+                {true, 6},
+                {true, 7},
+                {true, 8},
+                {true, 12},
+                {true, 16}};
+
         bool multiply = false;
         uint8_t factor = 2;
 
@@ -56,31 +109,24 @@ public:
         bool outputState = false;
         uint32_t pulseOffTimeUs = 0;
 
-        void addFactor(int8_t delta)
-        {
-            factorIndex = constrain((int8_t)factorIndex + delta, 0, NUM_FACTORS - 1);
-            factor = FACTORS[factorIndex];
-        }
+        RatioIndex ratioIndex = RatioIndex::MUL1;
 
-        void toggleMultiply()
+        void addRatio(int8_t delta)
         {
-            multiply = !multiply;
-        }
-
-        uint8_t getFactorIndex() const
-        {
-            return factorIndex;
-        }
-
-        void setFactorIndex(uint8_t index)
-        {
-            factorIndex = constrain(index, 0, NUM_FACTORS - 1);
-            factor = FACTORS[factorIndex];
+            int32_t r = constrain((int8_t)ratioIndex + delta, 0, (int8_t)RatioIndex::COUNT - 1);
+            setRatio((RatioIndex)r);
         }
 
         void addPulseMode(int8_t delta)
         {
             pulseMode = (PulseMode)constrain((int8_t)pulseMode + delta, (int8_t)PulseMode::TRIGGER, (int8_t)PulseMode::GATE_50);
+        }
+
+        void setRatio(RatioIndex r)
+        {
+            ratioIndex = r;
+            multiply = RATIO_TABLE[(int8_t)r].multiply;
+            factor = RATIO_TABLE[(int8_t)r].factor;
         }
     };
 

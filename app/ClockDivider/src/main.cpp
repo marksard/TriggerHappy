@@ -153,13 +153,13 @@ void setup()
 
 
     clockDivA.init();
-    clockDivA.channels[0].setFactorIndex(0);
-    clockDivA.channels[1].setFactorIndex(1);
-    clockDivA.channels[2].setFactorIndex(3);
+    clockDivA.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::MUL1);
+    clockDivA.channels[1].setRatio(ClockDividerMultiplier::RatioIndex::DIV2);
+    clockDivA.channels[2].setRatio(ClockDividerMultiplier::RatioIndex::DIV4);
     clockDivB.init();
-    clockDivB.channels[0].setFactorIndex(2);
-    clockDivB.channels[1].setFactorIndex(4);
-    clockDivB.channels[2].setFactorIndex(6);
+    clockDivB.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::DIV3);
+    clockDivB.channels[1].setRatio(ClockDividerMultiplier::RatioIndex::DIV5);
+    clockDivB.channels[2].setRatio(ClockDividerMultiplier::RatioIndex::DIV7);
 }
 
 void loop()
@@ -223,24 +223,16 @@ void loop1()
         }
         else if (buttonStates == ButtonCondition::UMODE)
         {
-            if (trigModeIndex < 3)
-            {
-                clockDivA.channels[trigModeIndex].toggleMultiply();
-            }
-            else
-            {
-                clockDivB.channels[trigModeIndex - 3].toggleMultiply();
-            }
         }
         else if (buttonStates == ButtonCondition::NONE)
         {
             if (trigModeIndex < 3)
             {
-                clockDivA.channels[trigModeIndex].addFactor(encValue);
+                clockDivA.channels[trigModeIndex].addRatio(encValue);
             }
             else
             {
-                clockDivB.channels[trigModeIndex - 3].addFactor(encValue);
+                clockDivB.channels[trigModeIndex - 3].addRatio(encValue);
             }
         }
     }
