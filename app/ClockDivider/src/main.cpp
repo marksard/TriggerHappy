@@ -174,7 +174,7 @@ void loop()
     if (clockEdge.isEdgeHigh())
     {
         clockDivA.onClockRise();
-        if (! dataEdge.isAlive())
+        if (!dataEdge.isAlive())
         {
             clockDivB.onClockRise();
         }
@@ -216,7 +216,7 @@ void loop1()
         {
             addTriggerModeCh(1);
         }
-        if (buttonStates == ButtonCondition::HA)
+        if (buttonStates == ButtonCondition::HB)
         {
             clockDivA.allAddPulseMode(encValue);
             clockDivB.allAddPulseMode(encValue);
