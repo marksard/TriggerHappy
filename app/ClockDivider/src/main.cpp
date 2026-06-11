@@ -248,7 +248,7 @@ void loop1()
             {
                 lfo.addRatio(encValue);
             }
-            if (trigModeIndex < 3)
+            else if (trigModeIndex < 3)
             {
                 clockDivA.channels[trigModeIndex].addRatio(encValue);
             }
