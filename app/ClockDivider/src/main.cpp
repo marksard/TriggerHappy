@@ -25,6 +25,7 @@
 #include "TriggerOutManager.hpp"
 
 #include "ClockDividerMultiplier.hpp"
+#include "SyncLFO.hpp"
 
 enum ButtonCondition
 {
@@ -90,6 +91,8 @@ private:
 };
 ClockDiviImplB clockDivB;
 
+SyncLFO lfo;
+
 //////////////////////////////////////////
 
 template <typename vs = int8_t>
@@ -106,18 +109,21 @@ vs constrainCyclic(vs value, vs min, vs max)
 
 void addTriggerModeCh(int8_t delta)
 {
-    trigModeIndex = constrainCyclic(trigModeIndex + delta, 0, 5);
-    const RGBLEDPWMControl::MenuColor menuColors[OUT_COUNT] = {
+    trigModeIndex = constrainCyclic(trigModeIndex + delta, 0, 6);
+    const RGBLEDPWMControl::MenuColor menuColors[OUT_COUNT + 1] = {
         RGBLEDPWMControl::MenuColor::GREEN,
         RGBLEDPWMControl::MenuColor::GREEN,
         RGBLEDPWMControl::MenuColor::YELLOW,
         RGBLEDPWMControl::MenuColor::YELLOW,
         RGBLEDPWMControl::MenuColor::RED,
-        RGBLEDPWMControl::MenuColor::RED};
-    const int8_t menuLevels[OUT_COUNT] = {
+        RGBLEDPWMControl::MenuColor::RED,
+        RGBLEDPWMControl::MenuColor::CYAN
+    };
+    const int8_t menuLevels[OUT_COUNT + 1] = {
         5, 11,
         5, 11,
-        5, 11};
+        5, 11,
+        11};
 
     rgbLedControl.setMenuColor(menuColors[trigModeIndex]);
     rgbLedControl.setMenuColorLevel(menuLevels[trigModeIndex]);
@@ -151,6 +157,7 @@ void setup()
     systemConfig.initEEPROM();
     systemConfig.loadUserConfig();
 
+    initPWM(OUT_CV, PWM_RESO);
 
     clockDivA.init();
     clockDivA.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::MUL1);
@@ -160,6 +167,10 @@ void setup()
     clockDivB.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::DIV3);
     clockDivB.channels[1].setRatio(ClockDividerMultiplier::RatioIndex::DIV5);
     clockDivB.channels[2].setRatio(ClockDividerMultiplier::RatioIndex::DIV7);
+
+    lfo.init(PWM_BIT);
+    lfo.setWaveform(SyncLFO::Waveform::TRIANGLE);
+    lfo.setRatio(SyncLFO::RatioIndex::DIV64);
 }
 
 void loop()
@@ -168,11 +179,13 @@ void loop()
 
     if (resetEdge.isEdgeHigh())
     {
+        lfo.onResetRise();
         clockDivA.onResetRise();
         clockDivB.onResetRise();
     }
     if (clockEdge.isEdgeHigh())
     {
+        lfo.onClockRise();
         clockDivA.onClockRise();
         if (!dataEdge.isAlive())
         {
@@ -180,6 +193,7 @@ void loop()
         }
     }
     clockDivA.update();
+    lfo.update();
 
     if (dataEdge.isEdgeHigh())
     {
@@ -187,8 +201,8 @@ void loop()
     }
     clockDivB.update();
 
+    pwm_set_gpio_level(OUT_CV, lfo.getValue());
     triggerOutManager.process();
-
     rgbLedControl.process();
     tight_loop_contents();
 }
@@ -216,6 +230,10 @@ void loop1()
         {
             addTriggerModeCh(1);
         }
+        if (buttonStates == ButtonCondition::HA)
+        {
+            lfo.addWaveform(encValue);
+        }
         if (buttonStates == ButtonCondition::HB)
         {
             clockDivA.allAddPulseMode(encValue);
@@ -226,6 +244,10 @@ void loop1()
         }
         else if (buttonStates == ButtonCondition::NONE)
         {
+            if (trigModeIndex == 6)
+            {
+                lfo.addRatio(encValue);
+            }
             if (trigModeIndex < 3)
             {
                 clockDivA.channels[trigModeIndex].addRatio(encValue);

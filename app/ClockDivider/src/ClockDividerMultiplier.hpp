@@ -110,15 +110,15 @@ public:
 
         RatioIndex ratioIndex = RatioIndex::MUL1;
 
+        void addPulseMode(int8_t delta)
+        {
+            pulseMode = (PulseMode)constrain((int8_t)pulseMode + delta, (int8_t)PulseMode::TRIGGER, (int8_t)PulseMode::GATE_50);
+        }
+
         void addRatio(int8_t delta)
         {
             int32_t r = constrain((int8_t)ratioIndex + delta, 0, (int8_t)RatioIndex::COUNT - 1);
             setRatio((RatioIndex)r);
-        }
-
-        void addPulseMode(int8_t delta)
-        {
-            pulseMode = (PulseMode)constrain((int8_t)pulseMode + delta, (int8_t)PulseMode::TRIGGER, (int8_t)PulseMode::GATE_50);
         }
 
         void setRatio(RatioIndex r)
