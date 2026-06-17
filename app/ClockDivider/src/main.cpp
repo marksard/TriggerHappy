@@ -49,6 +49,7 @@ enum ButtonCondition
 };
 
 // 標準インターフェース
+// static uint interruptSliceNum;
 static RotaryEncoder enc;
 static Button buttons[4];
 static RGBLEDPWMControl rgbLedControl;
@@ -60,6 +61,9 @@ static int8_t trigModeIndex = 0;
 static EdgeChecker clockEdge;
 static EdgeChecker resetEdge;
 static EdgeChecker dataEdge;
+static volatile bool clockEdgeLatch = false;
+static volatile bool resetEdgeLatch = false;
+static volatile bool dataEdgeLatch = false;
 static TriggerOutManager triggerOutManager;
 
 class ClockDiviImplA : public ClockDividerMultiplier
@@ -117,8 +121,7 @@ void addTriggerModeCh(int8_t delta)
         RGBLEDPWMControl::MenuColor::YELLOW,
         RGBLEDPWMControl::MenuColor::RED,
         RGBLEDPWMControl::MenuColor::RED,
-        RGBLEDPWMControl::MenuColor::CYAN
-    };
+        RGBLEDPWMControl::MenuColor::CYAN};
     const int8_t menuLevels[OUT_COUNT + 1] = {
         5, 11,
         5, 11,
@@ -130,6 +133,54 @@ void addTriggerModeCh(int8_t delta)
 }
 
 //////////////////////////////////////////
+
+void edgeCallback(uint gpio, uint32_t events)
+{
+    if (gpio == CLOCK)
+    {
+        if (events & GPIO_IRQ_EDGE_RISE)
+        {
+            clockEdge.updateEdge(1);
+            clockEdgeLatch = true;
+        }
+        else if (events & GPIO_IRQ_EDGE_FALL)
+        {
+            clockEdge.updateEdge(0);
+            clockEdgeLatch = false;
+        }
+    }
+    else if (gpio == RESET)
+    {
+        if (events & GPIO_IRQ_EDGE_RISE)
+        {
+            resetEdge.updateEdge(1);
+            resetEdgeLatch = true;
+        }
+        else if (events & GPIO_IRQ_EDGE_FALL)
+        {
+            resetEdge.updateEdge(0);
+            resetEdgeLatch = false;
+        }
+    }
+    else if (gpio == DATA)
+    {
+        if (events & GPIO_IRQ_EDGE_RISE)
+        {
+            dataEdge.updateEdge(1);
+            dataEdgeLatch = true;
+        }
+        else if (events & GPIO_IRQ_EDGE_FALL)
+        {
+            dataEdge.updateEdge(0);
+            dataEdgeLatch = false;
+        }
+    }
+}
+
+// void interruptPWM()
+// {
+//     pwm_clear_irq(interruptSliceNum);
+// }
 
 void setup()
 {
@@ -160,7 +211,7 @@ void setup()
     initPWM(OUT_CV, PWM_RESO);
 
     clockDivA.init();
-    clockDivA.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::MUL1);
+    clockDivA.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::CLK);
     clockDivA.channels[1].setRatio(ClockDividerMultiplier::RatioIndex::DIV2);
     clockDivA.channels[2].setRatio(ClockDividerMultiplier::RatioIndex::DIV4);
     clockDivB.init();
@@ -171,38 +222,55 @@ void setup()
     lfo.init(PWM_BIT);
     lfo.setWaveform(SyncLFO::Waveform::TRIANGLE);
     lfo.setRatio(SyncLFO::RatioIndex::DIV64);
+
+    // initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
+
+    gpio_set_irq_enabled(CLOCK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(RESET, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_enabled(DATA, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
+    gpio_set_irq_callback(edgeCallback);
+    irq_set_enabled(IO_IRQ_BANK0, true);
 }
 
 void loop()
 {
     int8_t encValue = enc.getDirection();
 
-    if (resetEdge.isEdgeHigh())
+    if (resetEdgeLatch)
     {
-        lfo.onResetRise();
+        resetEdgeLatch = false;
         clockDivA.onResetRise();
         clockDivB.onResetRise();
+        lfo.onResetRise();
+        clockEdgeLatch = true;
     }
-    if (clockEdge.isEdgeHigh())
+    else
     {
-        lfo.onClockRise();
-        clockDivA.onClockRise();
-        if (!dataEdge.isAlive())
+        if (clockEdgeLatch)
         {
+            clockEdgeLatch = false;
+            lfo.onClockRise();
+            clockDivA.onClockRise();
+            if (!dataEdge.isAlive())
+            {
+                clockDivB.onClockRise();
+            }
+        }
+
+        if (dataEdgeLatch)
+        {
+            dataEdgeLatch = false;
             clockDivB.onClockRise();
         }
     }
-    clockDivA.update();
-    lfo.update();
 
-    if (dataEdge.isEdgeHigh())
-    {
-        clockDivB.onClockRise();
-    }
+    clockDivA.update();
     clockDivB.update();
+    lfo.update();
 
     pwm_set_gpio_level(OUT_CV, lfo.getValue());
     triggerOutManager.process();
+
     rgbLedControl.process();
     tight_loop_contents();
 }
@@ -221,7 +289,7 @@ void loop1()
     // ButtonCondition用にまとめる
     uint16_t buttonStates = (btnMode << 12) + (btnA << 8) + (btnB << 4) + btnRE;
 
-    { 
+    {
         if (buttonStates == ButtonCondition::UA)
         {
             addTriggerModeCh(-1);

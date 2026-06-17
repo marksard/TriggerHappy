@@ -37,7 +37,7 @@ public:
         DIV3,
         DIV2,
 
-        MUL1,
+        CLK,
 
         MUL2,
         MUL3,
@@ -61,7 +61,7 @@ public:
             {false, 3},
             {false, 2},
 
-            {true, 1},
+            {false, 1},
 
             {true, 2},
             {true, 3},
@@ -242,7 +242,7 @@ private:
 
     bool multiply = false;
     uint8_t factor = 1;
-    RatioIndex ratioIndex = RatioIndex::MUL1;
+    RatioIndex ratioIndex = RatioIndex::CLK;
 
     uint32_t phase = 0;
     uint16_t pwmResoM1 = 0;

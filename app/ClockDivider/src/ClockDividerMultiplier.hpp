@@ -50,7 +50,7 @@ public:
         DIV3,
         DIV2,
 
-        MUL1,
+        CLK,
 
         MUL2,
         MUL3,
@@ -86,7 +86,7 @@ public:
                 {false, 3},
                 {false, 2},
 
-                {true, 1},
+                {false, 1},
 
                 {true, 2},
                 {true, 3},
@@ -108,7 +108,7 @@ public:
         bool outputState = false;
         uint32_t pulseOffTimeUs = 0;
 
-        RatioIndex ratioIndex = RatioIndex::MUL1;
+        RatioIndex ratioIndex = RatioIndex::CLK;
 
         void addPulseMode(int8_t delta)
         {
@@ -193,23 +193,6 @@ public:
 
         lastClockUs = now;
 
-        if (resetPending)
-        {
-            resetPending = false;
-
-            for (auto &ch : channels)
-            {
-                ch.phase = 0;
-                ch.lastUpdateUs = now;
-
-                if (ch.outputState)
-                {
-                    ch.outputState = false;
-                    onOutputLow(ch.no);
-                }
-            }
-        }
-
         for (auto &ch : channels)
         {
             if (ch.multiply)
@@ -227,6 +210,12 @@ public:
             {
                 uint64_t increment =
                     PHASE_SCALE / ch.factor;
+
+                if (resetPending)
+                {
+                    ch.phase =
+                        (uint32_t)(PHASE_SCALE - increment);
+                }
 
                 uint64_t sum =
                     (uint64_t)ch.phase +
@@ -251,6 +240,11 @@ public:
                         intervalUs);
                 }
             }
+        }
+
+        if (resetPending)
+        {
+            resetPending = false;
         }
     }
 
@@ -393,19 +387,25 @@ private:
         {
         case PulseMode::TRIGGER:
         {
-            ch.outputState = true;
             ch.pulseOffTimeUs =
                 now + triggerWidthUs;
-            onOutputHigh(no);
+            if (!ch.outputState)
+            {
+                ch.outputState = true;
+                onOutputHigh(no);
+            }
             break;
         }
 
         case PulseMode::GATE_50:
         {
-            ch.outputState = true;
             ch.pulseOffTimeUs =
                 now + (intervalUs >> 1);
-            onOutputHigh(no);
+            if (!ch.outputState)
+            {
+                ch.outputState = true;
+                onOutputHigh(no);
+            }
             break;
         }
         }
