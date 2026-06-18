@@ -40,6 +40,8 @@ public:
 
     enum class RatioIndex : uint8_t
     {
+        DIV64,
+        DIV32,
         DIV16,
         DIV12,
         DIV8,
@@ -64,49 +66,50 @@ public:
 
         COUNT
     };
+    struct RatioInfo
+    {
+        bool multiply;
+        uint8_t factor;
+    };
+
+    static constexpr RatioInfo RATIO_TABLE[] =
+        {
+            {false, 64},
+            {false, 32},
+            {false, 16},
+            {false, 12},
+            {false, 8},
+            {false, 7},
+            {false, 6},
+            {false, 5},
+            {false, 4},
+            {false, 3},
+            {false, 2},
+
+            {false, 1},
+
+            {true, 2},
+            {true, 3},
+            {true, 4},
+            {true, 5},
+            {true, 6},
+            {true, 7},
+            {true, 8},
+            {true, 12},
+            {true, 16}};
 
     /// @brief チャンネル設定
     struct Channel
     {
-        struct RatioInfo
-        {
-            bool multiply;
-            uint8_t factor;
-        };
-
-        static constexpr RatioInfo RATIO_TABLE[] =
-            {
-                {false, 16},
-                {false, 12},
-                {false, 8},
-                {false, 7},
-                {false, 6},
-                {false, 5},
-                {false, 4},
-                {false, 3},
-                {false, 2},
-
-                {false, 1},
-
-                {true, 2},
-                {true, 3},
-                {true, 4},
-                {true, 5},
-                {true, 6},
-                {true, 7},
-                {true, 8},
-                {true, 12},
-                {true, 16}};
-
+        PulseMode pulseMode = PulseMode::GATE_50;
+        uint8_t no = 0;
         bool multiply = false;
         uint8_t factor = 2;
-        uint8_t no = 0;
-
-        PulseMode pulseMode = PulseMode::GATE_50;
-        uint32_t phase = 0;
-        uint32_t lastUpdateUs = 0;
         bool outputState = false;
+        uint32_t lastUpdateUs = 0;
         uint32_t pulseOffTimeUs = 0;
+        uint32_t phase = 0;        // multiply用
+        uint8_t divideCounter = 0; // divide用
 
         RatioIndex ratioIndex = RatioIndex::CLK;
 
@@ -172,6 +175,34 @@ public:
         resetPending = true;
     }
 
+    /// @brief RESET処理
+    /// @details
+    /// 実際のリセット
+    /// divide側はリセット時発火したいのでch.factorを入れてonClockRiseの中で強制発火させる
+    void doReset(uint32_t now)
+    {
+        for (auto &ch : channels)
+        {
+            if (ch.multiply)
+            {
+                ch.phase = 0;
+                ch.lastUpdateUs = now;
+            }
+            else
+            {
+                ch.divideCounter = ch.factor;
+            }
+
+            if (ch.outputState)
+            {
+                ch.outputState = false;
+                onOutputLow(ch.no);
+            }
+        }
+
+        resetPending = false;
+    }
+
     /// @brief CLOCK入力立ち上がり通知
     /// @details
     /// クロック周期測定とDivide/Multiplyイベント生成を行う。
@@ -193,6 +224,11 @@ public:
 
         lastClockUs = now;
 
+        if (resetPending)
+        {
+            doReset(now);
+        }
+
         for (auto &ch : channels)
         {
             if (ch.multiply)
@@ -208,43 +244,28 @@ public:
             }
             else
             {
-                uint64_t increment =
-                    PHASE_SCALE / ch.factor;
-
-                if (resetPending)
-                {
-                    ch.phase =
-                        (uint32_t)(PHASE_SCALE - increment);
-                }
-
-                uint64_t sum =
-                    (uint64_t)ch.phase +
-                    increment;
-
-                uint32_t overflowCount =
-                    sum >> 32;
-
-                ch.phase =
-                    (uint32_t)sum;
-
-                uint32_t intervalUs =
-                    clockPeriodUs * ch.factor;
-
-                for (uint32_t i = 0;
-                     i < overflowCount;
-                     i++)
+                if (ch.factor == 1)
                 {
                     fireEvent(
                         ch.no,
                         now,
-                        intervalUs);
+                        clockPeriodUs);
+                }
+                else
+                {
+                    ch.divideCounter++;
+
+                    if (ch.divideCounter >= ch.factor)
+                    {
+                        ch.divideCounter = 0;
+
+                        fireEvent(
+                            ch.no,
+                            now,
+                            clockPeriodUs * ch.factor);
+                    }
                 }
             }
-        }
-
-        if (resetPending)
-        {
-            resetPending = false;
         }
     }
 
