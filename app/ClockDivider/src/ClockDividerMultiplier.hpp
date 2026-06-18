@@ -137,9 +137,7 @@ public:
     void init()
     {
         uint32_t now = time_us_32();
-
         lastClockUs = now;
-
         int8_t no = 0;
         for (auto &ch : channels)
         {
@@ -281,9 +279,7 @@ public:
     {
         uint32_t now = time_us_32();
 
-        //
         // Clock timeout
-        //
         if (clockRunning)
         {
             uint32_t timeoutUs =
@@ -309,9 +305,7 @@ public:
 
         for (auto &ch : channels)
         {
-            //
             // Pulse OFF
-            //
             if (ch.outputState)
             {
                 if ((int32_t)(now - ch.pulseOffTimeUs) >= 0)
@@ -321,47 +315,25 @@ public:
                 }
             }
 
-            //
             // Multiply DDS
-            //
             if (!ch.multiply)
                 continue;
 
             if (!clockRunning)
                 continue;
 
-            uint32_t dt =
-                now - ch.lastUpdateUs;
-
+            uint32_t dt = now - ch.lastUpdateUs;
             ch.lastUpdateUs = now;
-
             uint64_t increment =
-                (PHASE_SCALE *
-                 (uint64_t)ch.factor *
-                 (uint64_t)dt) /
-                clockPeriodUs;
+                (PHASE_SCALE * (uint64_t)ch.factor * (uint64_t)dt) / clockPeriodUs;
+            uint64_t sum = (uint64_t)ch.phase + increment;
+            uint32_t overflowCount = sum >> 32;
+            ch.phase = (uint32_t)sum;
+            uint32_t intervalUs = clockPeriodUs / ch.factor;
 
-            uint64_t sum =
-                (uint64_t)ch.phase +
-                increment;
-
-            uint32_t overflowCount =
-                sum >> 32;
-
-            ch.phase =
-                (uint32_t)sum;
-
-            uint32_t intervalUs =
-                clockPeriodUs / ch.factor;
-
-            for (uint32_t i = 0;
-                 i < overflowCount;
-                 i++)
+            for (uint32_t i = 0; i < overflowCount; i++)
             {
-                fireEvent(
-                    ch.no,
-                    now,
-                    intervalUs);
+                fireEvent(ch.no, now, intervalUs);
             }
         }
     }
@@ -407,7 +379,6 @@ private:
         switch (ch.pulseMode)
         {
         case PulseMode::TRIGGER:
-        {
             ch.pulseOffTimeUs =
                 now + triggerWidthUs;
             if (!ch.outputState)
@@ -416,10 +387,8 @@ private:
                 onOutputHigh(no);
             }
             break;
-        }
 
         case PulseMode::GATE_50:
-        {
             ch.pulseOffTimeUs =
                 now + (intervalUs >> 1);
             if (!ch.outputState)
@@ -428,7 +397,6 @@ private:
                 onOutputHigh(no);
             }
             break;
-        }
         }
     }
 };

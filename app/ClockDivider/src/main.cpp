@@ -58,8 +58,8 @@ static EEPROMConfigIO<SystemConfig> systemConfig(0);
 
 // 機能
 static int8_t trigModeIndex = 0;
-static EdgeChecker clockEdge;
-static EdgeChecker resetEdge;
+// static EdgeChecker clockEdge;
+// static EdgeChecker resetEdge;
 static EdgeChecker dataEdge;
 static volatile bool clockEdgeLatch = false;
 static volatile bool resetEdgeLatch = false;
@@ -140,12 +140,12 @@ void edgeCallback(uint gpio, uint32_t events)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
         {
-            clockEdge.updateEdge(1);
+            // clockEdge.updateEdge(1);
             clockEdgeLatch = true;
         }
         else if (events & GPIO_IRQ_EDGE_FALL)
         {
-            clockEdge.updateEdge(0);
+            // clockEdge.updateEdge(0);
             clockEdgeLatch = false;
         }
     }
@@ -153,12 +153,12 @@ void edgeCallback(uint gpio, uint32_t events)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
         {
-            resetEdge.updateEdge(1);
+            // resetEdge.updateEdge(1);
             resetEdgeLatch = true;
         }
         else if (events & GPIO_IRQ_EDGE_FALL)
         {
-            resetEdge.updateEdge(0);
+            // resetEdge.updateEdge(0);
             resetEdgeLatch = false;
         }
     }
@@ -197,8 +197,10 @@ void setup()
     buttons[2].setHoldTime(500);
     buttons[3].init(BTN_MODE);
     buttons[3].setHoldTime(350);
-    clockEdge.init(CLOCK);
-    resetEdge.init(RESET);
+    // clockEdge.init(CLOCK);
+    // resetEdge.init(RESET);
+    pinMode(CLOCK, INPUT);
+    pinMode(RESET, INPUT);
     dataEdge.init(DATA, 2000);
     triggerOutManager.init();
 
