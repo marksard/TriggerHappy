@@ -80,7 +80,7 @@ enum ButtonCondition
 };
 
 // 標準インターフェース
-static uint interruptSliceNum;
+// static uint interruptSliceNum;
 static RotaryEncoder enc;
 static Button buttons[4];
 static SmoothAnalogRead dataIn;
@@ -247,10 +247,10 @@ void edgeCallback(uint gpio, uint32_t events)
     }
 }
 
-void interruptPWM()
-{
-    pwm_clear_irq(interruptSliceNum);
-}
+// void interruptPWM()
+// {
+//     pwm_clear_irq(interruptSliceNum);
+// }
 
 void setup()
 {
@@ -267,8 +267,8 @@ void setup()
     buttons[2].setHoldTime(500);
     buttons[3].init(BTN_MODE);
     buttons[3].setHoldTime(350);
-    dataIn.init(DATA);
     clockEdge.init(CLOCK); // clockエッジ期間計測のみで利用
+    dataIn.init(DATA);
     triggerOutManager.init();
 
     rgbLedControl.init(20000, PWM_BIT, LED_R, LED_G, LED_B);
@@ -282,8 +282,7 @@ void setup()
     quantizer.setScale(r2rScaleIndex[r2rScale]);
 
     initPWM(OUT_CV, PWM_RESO);
-
-    initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
+    // initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
 
     gpio_init(CLOCK);
     gpio_init(RESET);
@@ -302,7 +301,6 @@ void loop()
 
     rgbLedControl.process();
     tight_loop_contents();
-    sleep_us(50);
 }
 
 void setup1()
