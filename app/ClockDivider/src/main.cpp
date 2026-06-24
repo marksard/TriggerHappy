@@ -132,6 +132,83 @@ void addTriggerModeCh(int8_t delta)
     rgbLedControl.setMenuColorLevel(menuLevels[trigModeIndex]);
 }
 
+void operation(uint16_t buttonStates, int8_t encValue)
+{
+    if (buttonStates == ButtonCondition::UA)
+    {
+        addTriggerModeCh(-1);
+    }
+    else if (buttonStates == ButtonCondition::UB)
+    {
+        addTriggerModeCh(1);
+    }
+    if (buttonStates == ButtonCondition::HA)
+    {
+        lfo.addWaveform(encValue);
+    }
+    if (buttonStates == ButtonCondition::HB)
+    {
+        clockDivA.allAddPulseMode(encValue);
+        clockDivB.allAddPulseMode(encValue);
+    }
+    else if (buttonStates == ButtonCondition::UMODE)
+    {
+    }
+    else if (buttonStates == ButtonCondition::NONE)
+    {
+        if (trigModeIndex == 6)
+        {
+            lfo.addRatio(encValue);
+        }
+        else if (trigModeIndex < 3)
+        {
+            clockDivA.channels[trigModeIndex].addRatio(encValue);
+        }
+        else
+        {
+            clockDivB.channels[trigModeIndex - 3].addRatio(encValue);
+        }
+    }
+}
+
+void process()
+{
+    if (resetEdgeLatch)
+    {
+        resetEdgeLatch = false;
+        clockDivA.onResetRise();
+        clockDivB.onResetRise();
+        lfo.onResetRise();
+        clockEdgeLatch = true;
+    }
+    else
+    {
+        if (clockEdgeLatch)
+        {
+            clockEdgeLatch = false;
+            lfo.onClockRise();
+            clockDivA.onClockRise();
+            if (!dataEdge.isAlive())
+            {
+                clockDivB.onClockRise();
+            }
+        }
+
+        if (dataEdgeLatch)
+        {
+            dataEdgeLatch = false;
+            clockDivB.onClockRise();
+        }
+    }
+
+    clockDivA.update();
+    clockDivB.update();
+    lfo.update();
+
+    pwm_set_gpio_level(OUT_CV, lfo.getValue());
+    triggerOutManager.process();
+}
+
 //////////////////////////////////////////
 
 void edgeCallback(uint gpio, uint32_t events)
@@ -199,9 +276,7 @@ void setup()
     buttons[3].setHoldTime(350);
     // clockEdge.init(CLOCK);
     // resetEdge.init(RESET);
-    pinMode(CLOCK, INPUT);
-    pinMode(RESET, INPUT);
-    dataEdge.init(DATA, 2000);
+    dataEdge.init(DATA, 2000); // 入力チェックのみ利用
     triggerOutManager.init();
 
     rgbLedControl.init(20000, PWM_BIT, LED_R, LED_G, LED_B);
@@ -209,8 +284,6 @@ void setup()
 
     systemConfig.initEEPROM();
     systemConfig.loadUserConfig();
-
-    initPWM(OUT_CV, PWM_RESO);
 
     clockDivA.init();
     clockDivA.channels[0].setRatio(ClockDividerMultiplier::RatioIndex::CLK);
@@ -225,8 +298,11 @@ void setup()
     lfo.setWaveform(SyncLFO::Waveform::TRIANGLE);
     lfo.setRatio(SyncLFO::RatioIndex::DIV64);
 
+    initPWM(OUT_CV, PWM_RESO);
     // initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
 
+    pinMode(CLOCK, INPUT);
+    pinMode(RESET, INPUT);
     gpio_set_irq_enabled(CLOCK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(RESET, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(DATA, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
@@ -238,40 +314,7 @@ void loop()
 {
     int8_t encValue = enc.getDirection();
 
-    if (resetEdgeLatch)
-    {
-        resetEdgeLatch = false;
-        clockDivA.onResetRise();
-        clockDivB.onResetRise();
-        lfo.onResetRise();
-        clockEdgeLatch = true;
-    }
-    else
-    {
-        if (clockEdgeLatch)
-        {
-            clockEdgeLatch = false;
-            lfo.onClockRise();
-            clockDivA.onClockRise();
-            if (!dataEdge.isAlive())
-            {
-                clockDivB.onClockRise();
-            }
-        }
-
-        if (dataEdgeLatch)
-        {
-            dataEdgeLatch = false;
-            clockDivB.onClockRise();
-        }
-    }
-
-    clockDivA.update();
-    clockDivB.update();
-    lfo.update();
-
-    pwm_set_gpio_level(OUT_CV, lfo.getValue());
-    triggerOutManager.process();
+    process();
 
     rgbLedControl.process();
     tight_loop_contents();
@@ -291,43 +334,7 @@ void loop1()
     // ButtonCondition用にまとめる
     uint16_t buttonStates = (btnMode << 12) + (btnA << 8) + (btnB << 4) + btnRE;
 
-    {
-        if (buttonStates == ButtonCondition::UA)
-        {
-            addTriggerModeCh(-1);
-        }
-        else if (buttonStates == ButtonCondition::UB)
-        {
-            addTriggerModeCh(1);
-        }
-        if (buttonStates == ButtonCondition::HA)
-        {
-            lfo.addWaveform(encValue);
-        }
-        if (buttonStates == ButtonCondition::HB)
-        {
-            clockDivA.allAddPulseMode(encValue);
-            clockDivB.allAddPulseMode(encValue);
-        }
-        else if (buttonStates == ButtonCondition::UMODE)
-        {
-        }
-        else if (buttonStates == ButtonCondition::NONE)
-        {
-            if (trigModeIndex == 6)
-            {
-                lfo.addRatio(encValue);
-            }
-            else if (trigModeIndex < 3)
-            {
-                clockDivA.channels[trigModeIndex].addRatio(encValue);
-            }
-            else
-            {
-                clockDivB.channels[trigModeIndex - 3].addRatio(encValue);
-            }
-        }
-    }
+    operation(buttonStates, encValue);
 
     rgbLedControl.update();
     tight_loop_contents();
