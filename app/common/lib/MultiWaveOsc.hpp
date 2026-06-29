@@ -41,7 +41,7 @@ public:
         NOISE,
         MAX = NOISE,
     };
-    const uint32_t indexBit = OSC_WAVE_BIT - WAVE_LENGTH_BIT;
+    static constexpr uint32_t indexBit = OSC_WAVE_BIT - WAVE_LENGTH_BIT;
 
 public:
     MultiWaveOsc()
@@ -54,10 +54,9 @@ public:
         _phaseAccum = 0;
         _tuningWordM = 0;
         _wave = Wave::SQU;
-        _interruptClock = clock;
+        _phaseScale = (float)OSC_WAVE_BIT32 / clock;
         _rnd.randomSeed(OSC_WAVE_BIT32 - 1);
         _lastValue = 0;
-        _isFolding = false;
     }
 
     int16_t getWaveValue()
@@ -68,37 +67,37 @@ public:
         uint32_t indexPhase = (indexHeight + _phaseShift) % _height;
         uint32_t indexPulse = (indexHeight + _pulseShift) % _height;
         int16_t value = 0;
-        switch (_wave)
+        if (_wave == Wave::SQU)
         {
-        case Wave::SQU:
             value = index < indexPulse ? _heightM1 : 0;
-            break;
-        case Wave::SAW:
+        }
+        else if (_wave == Wave::SAW)
+        {
             value = applyPhaseShift(value, indexHeight, indexPhase);
-            break;
-        case Wave::MUL_TRI:
+        }
+        else if (_wave == Wave::MUL_TRI)
         {
             value = getTriangle(index, indexHeight);
             uint16_t value2 = getTriangle(index, indexPhase);
             value = ((value * value2) >> _heightBit) % _height;
         }
-        break;
-        case Wave::TRI:
+        else if (_wave == Wave::TRI)
+        {
             value = getTriangle(index, indexHeight);
-            if (_isFolding)
-                value = applyEzFolding(value);
-            break;
-        case Wave::SINE:
+            value = applyEzFolding(value);
+        }
+        else if (_wave == Wave::SINE)
+        {
             value = _pSineTable[index];
-            if (_isFolding)
-                value = applyEzFolding(value);
-            break;
-        case Wave::NOISE:
+            value = applyEzFolding(value);
+        }
+        else if (_wave == Wave::NOISE)
+        {
             value = _rnd.getRandom16(_height);
-            break;
-        default:
+        }
+        else
+        {
             value = 0;
-            break;
         }
 
         // simplest linear interpolation
@@ -120,8 +119,8 @@ public:
 
     void setFrequency(float frequency)
     {
-        // チューニングワード値 = 2^N(ここでは32bitに設定) * 出力したい周波数 / クロック周波数
-        _tuningWordM = OSC_WAVE_BIT32 * (frequency / _interruptClock);
+        // チューニングワード値 = 出力したい周波数 * (2^N(ここでは32bitに設定) / クロック周波数)
+        _tuningWordM = frequency * _phaseScale;
     }
 
     void setFreqFromNoteIndex(int8_t index)
@@ -214,8 +213,6 @@ public:
 
     int16_t getPulseWidth() { return _pulseShift; }
 
-    void startFolding(int16_t value) { _isFolding = value != 0 ? true : false; }
-
 protected:
     uint32_t _phaseAccum;
     uint32_t _tuningWordM;
@@ -224,12 +221,11 @@ protected:
     uint16_t _widthM1;
     uint16_t _heightHalf;
     uint16_t _heightM1;
-    float _interruptClock;
+    float _phaseScale;
     int16_t _phaseShift;
     int16_t _folding;
     int16_t _pulseShift;
     uint16_t _lastValue;
-    bool _isFolding;
     RandomFast _rnd;
     uint8_t _heightBit;
     uint16_t _height;
@@ -269,7 +265,7 @@ protected:
 
     inline uint16_t getTriangle(uint32_t index, uint32_t indexHeight)
     {
-        return index < _widthHalf ? (indexHeight << 1) : ((_heightM1 - indexHeight) << 1);
+        return (index & _widthHalf) ? ((_heightM1 - indexHeight) << 1) : (indexHeight << 1);
     }
 
     inline uint16_t applyPhaseShift(uint16_t value, uint32_t indexHeight, uint32_t indexPhase)

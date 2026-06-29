@@ -25,7 +25,7 @@ public:
         NOISE,
         MAX = NOISE,
     };
-    const uint32_t indexBit = OSC_WAVE_BIT - WAVE_LENGTH_BIT;
+    static constexpr uint32_t indexBit = OSC_WAVE_BIT - WAVE_LENGTH_BIT;
 
 public:
     MiniOsc()
@@ -39,7 +39,7 @@ public:
         _tuningWordM = 0;
         _wave = Wave::SQU;
         _widthHalf = WAVE_LENGTH >> 1;
-        _interruptClock = clock;
+        _phaseScale = (float)OSC_WAVE_BIT32 / clock;
         _attenuate = 0;
         _frequency = 0;
         _start = true;
@@ -57,23 +57,25 @@ public:
         uint32_t index = _phaseAccum >> indexBit;
         uint32_t indexHeight = (index >> _widthHeightDiffBit);
         int16_t value = 0;
-        switch (_wave)
+        if (_wave == Wave::SQU)
         {
-        case Wave::SQU:
             value = index < _widthHalf ? _heightM1 : 0;
-            break;
-        case Wave::SAW:
+        }
+        else if (_wave == Wave::SAW)
+        {
             value = indexHeight;
-            break;
-        case Wave::TRI:
+        }
+        else if (_wave == Wave::TRI)
+        {
             value = index < _widthHalf ? (indexHeight << 1) : ((_heightM1 - indexHeight) << 1);
-            break;
-        case Wave::NOISE:
+        }
+        else if (_wave == Wave::NOISE)
+        {
             value = _rnd.getRandom16(_height);
-            break;
-        default:
+        }
+        else
+        {
             value = 0;
-            break;
         }
 
         if (_signedOut)
@@ -88,10 +90,9 @@ public:
     {
         if (_frequency == frequency)
             return;
-        // _bpm = (uint32_t)(frequency * 60.0) / _bpmReso;
         _frequency = frequency;
-        // チューニングワード値 = 2^N(ここでは32bitに設定) * 出力したい周波数 / クロック周波数
-        _tuningWordM = OSC_WAVE_BIT32 * ((float)frequency / _interruptClock);
+        // チューニングワード値 = 出力したい周波数 * (2^N(ここでは32bitに設定) / クロック周波数)
+        _tuningWordM = frequency * _phaseScale;
     }
 
     bool setWave(Wave value)
@@ -131,6 +132,7 @@ public:
     byte getBPM() { return _bpm; }
     byte getBPMReso() { return _bpmReso; }
     int getDurationMills() { return _duration / 1000; }
+    float getFrequencey() { return _frequency; }
 
     void start()
     {
@@ -155,8 +157,8 @@ private:
     Wave _wave;
     uint16_t _widthHalf;
     uint16_t _heightM1;
+    float _phaseScale;
     uint8_t _attenuate;
-    float _interruptClock;
     float _frequency;
     bool _start;
     byte _bpm;

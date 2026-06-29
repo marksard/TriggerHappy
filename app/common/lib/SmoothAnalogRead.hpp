@@ -3,7 +3,7 @@
  * Copyright 2023 marksard
  * This software is released under the MIT license.
  * see https://opensource.org/licenses/MIT
- */ 
+ */
 
 #pragma once
 
@@ -14,12 +14,21 @@
 class SmoothAnalogRead
 {
 public:
-    SmoothAnalogRead() {}
-    SmoothAnalogRead(byte pin)
+    SmoothAnalogRead()
+    {
+        _rawValueIndex = 0;
+        _rawValuesSum = 0;
+        for (uint8_t i = 0; i < averageCount; ++i)
+        {
+            _rawValues[i] = 0;
+        }
+    }
+
+    SmoothAnalogRead(byte pin) : SmoothAnalogRead()
     {
         init(pin);
     }
-    
+
     /// @brief ピン設定
     /// @param pin
     void init(byte pin)
@@ -37,20 +46,17 @@ public:
         // pinMode(pin, INPUT);
     }
 
+    /// @brief adc値を直接取得
+    /// @return
     uint16_t analogReadDirectFast()
     {
         _valueOld = _value;
         _value = readPinFast();
-        // _value = (_valueOld + _value + 1) >> 1;
         return _value;
     }
 
-    // uint16_t analogReadDirect()
-    // {
-    //     _value = readPin();
-    //     return _value;
-    // }
-
+    /// @brief 両端補正と4bitを落としたadc値の取得
+    /// @return
     uint16_t analogReadDropLow4bit()
     {
         _valueOld = _value;
@@ -70,17 +76,12 @@ public:
         return _value;
     }
 
+    /// @brief adc値の移動平均値、ローパスフィルタを通した値を取得
+    /// @return
     uint16_t analogRead(bool smooth = true)
     {
         _valueOld = _value;
-        // 平均＋ローパスフィルタ仕様
-        int aval = 0;
-        for (byte i = 0; i < 4; ++i)
-        {
-            aval += readPinFast();
-        }
-        aval = (_valueOld + (aval >> 2) + 1) >> 1;
-        // さらにローパス(端数を4095に調整)
+        int16_t aval = analogReadAverage();
         if (smooth)
         {
             _value = (_value * 0.95) + (aval * 0.05024);
@@ -101,10 +102,16 @@ public:
     }
 
 protected:
+    // 平均カウントは4回（>>2で割算） + 1（平均から除外する最古のデータ）を記憶
+    static constexpr uint8_t averageShiftCount = 2;
+    static constexpr uint32_t averageCount = (1 << averageShiftCount) + 1;
     static bool _adc_initted;
     byte _pin;
     uint16_t _value;
     uint16_t _valueOld;
+    uint8_t _rawValueIndex;
+    uint16_t _rawValues[averageCount];
+    int32_t _rawValuesSum;
 
     /// @brief ピン値読込
     /// @return
@@ -120,6 +127,24 @@ protected:
     virtual uint16_t readPin()
     {
         return ::analogRead(_pin);
+    }
+
+    /// @brief adcの移動平均を取得
+    /// @return
+    uint16_t analogReadAverage()
+    {
+        uint16_t value = readPinFast();
+        _rawValues[_rawValueIndex] = value;
+        _rawValueIndex++;
+        if (_rawValueIndex >= averageCount)
+        {
+            _rawValueIndex = 0;
+        }
+
+        // 積算値から最古のデータを引き、最新のデータを足すことでループなしで移動平均を出す
+        uint16_t lastValue = _rawValues[_rawValueIndex];
+        _rawValuesSum = _rawValuesSum - lastValue + value;
+        return (_rawValuesSum >> averageShiftCount);
     }
 };
 
