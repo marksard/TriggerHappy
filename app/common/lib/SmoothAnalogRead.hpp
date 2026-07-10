@@ -129,21 +129,19 @@ protected:
         return ::analogRead(_pin);
     }
 
-    /// @brief adcの移動平均を取得
-    /// @return
+    /// @brief ADCの移動平均を取得
+    /// @return 移動平均値
     uint16_t analogReadAverage()
     {
         uint16_t value = readPinFast();
+        uint16_t lastValue = _rawValues[_rawValueIndex];
         _rawValues[_rawValueIndex] = value;
+        _rawValuesSum = _rawValuesSum - lastValue + value;
         _rawValueIndex++;
         if (_rawValueIndex >= averageCount)
         {
             _rawValueIndex = 0;
         }
-
-        // 積算値から最古のデータを引き、最新のデータを足すことでループなしで移動平均を出す
-        uint16_t lastValue = _rawValues[_rawValueIndex];
-        _rawValuesSum = _rawValuesSum - lastValue + value;
         return (_rawValuesSum >> averageShiftCount);
     }
 };
