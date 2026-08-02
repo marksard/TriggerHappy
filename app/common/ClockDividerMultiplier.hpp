@@ -172,6 +172,14 @@ public:
         }
     }
 
+    void allSetPulseMode(PulseMode value)
+    {
+        for (auto &ch : channels)
+        {
+            ch.pulseMode = value;
+        }
+    }
+
     void allAddPulseMode(int8_t delta)
     {
         for (auto &ch : channels)
