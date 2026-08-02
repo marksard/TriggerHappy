@@ -19,11 +19,12 @@ public:
     struct RatioInfo
     {
         bool multiply;
-        uint8_t factor;
+        uint16_t factor;
     };
 
     enum class RatioIndex : uint8_t
     {
+        DIV256,
         DIV128,
         DIV64,
         DIV32,
@@ -48,6 +49,7 @@ public:
 
     static constexpr RatioInfo RATIO_TABLE[] =
         {
+            {false, 256},
             {false, 128},
             {false, 64},
             {false, 32},
@@ -109,15 +111,15 @@ public:
         waveform = wf;
     }
 
-    void setFactor(uint8_t f)
-    {
-        factor = (f == 0) ? 1 : f;
-    }
+    // void setFactor(uint16_t f)
+    // {
+    //     factor = (f == 0) ? 1 : f;
+    // }
 
-    void setMultiply(bool m)
-    {
-        multiply = m;
-    }
+    // void setMultiply(bool m)
+    // {
+    //     multiply = m;
+    // }
 
     void onResetRise()
     {
@@ -241,7 +243,7 @@ private:
         Waveform::TRIANGLE;
 
     bool multiply = false;
-    uint8_t factor = 1;
+    uint16_t factor = 1;
     RatioIndex ratioIndex = RatioIndex::CLK;
 
     uint32_t phase = 0;

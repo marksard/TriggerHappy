@@ -68,6 +68,9 @@ static TriggerOutManager triggerOutManager;
 
 class ClockDiviImplA : public ClockDividerMultiplier
 {
+public:
+    ClockDiviImplA(uint8_t numChannels): ClockDividerMultiplier(numChannels) {}
+
 private:
     void onOutputHigh(uint8_t ch) override
     {
@@ -79,9 +82,12 @@ private:
         triggerOutManager.out(ch)->set(0);
     }
 };
-ClockDiviImplA clockDivA;
+ClockDiviImplA clockDivA(3);
 class ClockDiviImplB : public ClockDividerMultiplier
 {
+public:
+    ClockDiviImplB(uint8_t numChannels): ClockDividerMultiplier(numChannels) {}
+
 private:
     void onOutputHigh(uint8_t ch) override
     {
@@ -93,7 +99,7 @@ private:
         triggerOutManager.out(ch + 3)->set(0);
     }
 };
-ClockDiviImplB clockDivB;
+ClockDiviImplB clockDivB(3);
 
 SyncLFO lfo;
 

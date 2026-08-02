@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include "pico/stdlib.h"
+#include <vector>
 
 /// @brief Clock Divider / Multiplier
 /// @details
@@ -29,7 +30,6 @@
 class ClockDividerMultiplier
 {
 public:
-    static constexpr uint8_t NUM_CHANNELS = 3;
     static constexpr uint64_t PHASE_SCALE = 0x100000000ULL;
 
     enum class PulseMode : uint8_t
@@ -40,6 +40,8 @@ public:
 
     enum class RatioIndex : uint8_t
     {
+        DIV256,
+        DIV128,
         DIV64,
         DIV32,
         DIV16,
@@ -62,18 +64,19 @@ public:
         MUL7,
         MUL8,
         MUL12,
-        MUL16,
-
-        COUNT
+        MUL16
     };
+
     struct RatioInfo
     {
         bool multiply;
-        uint8_t factor;
+        uint16_t factor;
     };
 
     static constexpr RatioInfo RATIO_TABLE[] =
         {
+            {false, 256},
+            {false, 128},
             {false, 64},
             {false, 32},
             {false, 16},
@@ -104,7 +107,7 @@ public:
         PulseMode pulseMode = PulseMode::GATE_50;
         uint8_t no = 0;
         bool multiply = false;
-        uint8_t factor = 2;
+        uint16_t factor = 2;
         bool outputState = false;
         uint32_t lastUpdateUs = 0;
         uint32_t pulseOffTimeUs = 0;
@@ -112,6 +115,18 @@ public:
         uint8_t divideCounter = 0; // divide用
 
         RatioIndex ratioIndex = RatioIndex::CLK;
+        RatioIndex ratioIndexLower = RatioIndex::DIV64;
+        RatioIndex ratioIndexUpper = RatioIndex::MUL16;
+
+        void setRatioLower(RatioIndex r)
+        {
+            ratioIndexLower = r;
+        }
+
+        void setRatioUpper(RatioIndex r)
+        {
+            ratioIndexUpper = r;
+        }
 
         void addPulseMode(int8_t delta)
         {
@@ -120,8 +135,8 @@ public:
 
         void addRatio(int8_t delta)
         {
-            int32_t r = constrain((int8_t)ratioIndex + delta, 0, (int8_t)RatioIndex::COUNT - 1);
-            setRatio((RatioIndex)r);
+            RatioIndex r = (RatioIndex)constrain((int8_t)ratioIndex + delta, (int8_t)ratioIndexLower, (int8_t)ratioIndexUpper);
+            setRatio(r);
         }
 
         void setRatio(RatioIndex r)
@@ -132,7 +147,14 @@ public:
         }
     };
 
-    Channel channels[NUM_CHANNELS];
+    uint8_t numChannels;
+    std::vector<Channel> channels;
+
+    ClockDividerMultiplier(uint8_t numChannels)
+        : numChannels(numChannels),
+          channels(numChannels)
+    {
+    }
 
     void init()
     {
