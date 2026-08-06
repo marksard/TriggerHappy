@@ -128,6 +128,11 @@ public:
             ratioIndexUpper = r;
         }
 
+        void togglePulseMode()
+        {
+            pulseMode = pulseMode == PulseMode::TRIGGER ? PulseMode::GATE_50 : PulseMode::TRIGGER;
+        }
+
         void addPulseMode(int8_t delta)
         {
             pulseMode = (PulseMode)constrain((int8_t)pulseMode + delta, (int8_t)PulseMode::TRIGGER, (int8_t)PulseMode::GATE_50);

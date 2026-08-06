@@ -148,17 +148,27 @@ void operation(uint16_t buttonStates, int8_t encValue)
     {
         addTriggerModeCh(1);
     }
+    if (buttonStates == ButtonCondition::URE)
+    {
+        resetEdgeLatch = true;
+    }
     if (buttonStates == ButtonCondition::HA)
     {
         lfo.addWaveform(encValue);
     }
     if (buttonStates == ButtonCondition::HB)
     {
-        clockDivA.allAddPulseMode(encValue);
-        clockDivB.allAddPulseMode(encValue);
     }
     else if (buttonStates == ButtonCondition::UMODE)
     {
+        if (trigModeIndex < 3)
+        {
+            clockDivA.channels[trigModeIndex].togglePulseMode();
+        }
+        else
+        {
+            clockDivB.channels[trigModeIndex].togglePulseMode();
+        }
     }
     else if (buttonStates == ButtonCondition::NONE)
     {
