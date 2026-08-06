@@ -150,7 +150,10 @@ void operation(uint16_t buttonStates, int8_t encValue)
     }
     if (buttonStates == ButtonCondition::URE)
     {
-        resetEdgeLatch = true;
+        clockDivA.onResetRise(true);
+        clockDivB.onResetRise(true);
+        lfo.onResetRise(true);
+        clockEdgeLatch = true;
     }
     if (buttonStates == ButtonCondition::HA)
     {
@@ -167,7 +170,7 @@ void operation(uint16_t buttonStates, int8_t encValue)
         }
         else
         {
-            clockDivB.channels[trigModeIndex].togglePulseMode();
+            clockDivB.channels[trigModeIndex - 3].togglePulseMode();
         }
     }
     else if (buttonStates == ButtonCondition::NONE)

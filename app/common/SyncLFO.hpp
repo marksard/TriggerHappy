@@ -121,9 +121,15 @@ public:
     //     multiply = m;
     // }
 
-    void onResetRise()
+    void onResetRise(bool force = false)
     {
         resetPending = true;
+        if (force == true)
+        {
+            clockPeriodUs = 0;
+            lastClockUs = 0;
+            phase = 0;
+        }
     }
 
     void onClockRise()

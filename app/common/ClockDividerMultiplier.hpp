@@ -203,9 +203,14 @@ public:
     /// @brief RESET入力立ち上がり通知
     /// @details
     /// 実際のリセットは次回CLOCK入力時に行われる。
-    void onResetRise()
+    void onResetRise(bool force = false)
     {
         resetPending = true;
+        if (force == true)
+        {
+            clockPeriodUs = 0;
+            lastClockUs = 0;
+        }
     }
 
     /// @brief RESET処理
