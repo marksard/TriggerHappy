@@ -30,6 +30,7 @@ jobs:
         run: |
           platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
           platformio run -e waveshare_rp2040_zero -d app/HexBitr
+          platformio run -e waveshare_rp2040_zero -d app/ClockDivider
 
       - name: Rename firmware.uf2
         run: |
@@ -37,6 +38,8 @@ jobs:
           cp app/TriggerHappy/manual/TriggerHappyOperationManual.pdf TriggerHappyOperationManual.pdf
           cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 HexBitr.uf2
           cp app/HexBitr/manual/HexBitrOperationManual.pdf HexBitrOperationManual.pdf
+          cp app/ClockDivider/.pio/build/waveshare_rp2040_zero/firmware.uf2 ClockDivider.uf2
+          cp app/ClockDivider/manual/ClockDividerOperationManual.pdf ClockDividerOperationManual.pdf
 
       - name: Upload Release to GitHub
         uses: softprops/action-gh-release@v2
@@ -46,5 +49,7 @@ jobs:
             TriggerHappyOperationManual.pdf
             HexBitr.uf2
             HexBitrOperationManual.pdf
+            ClockDivider.uf2
+            ClockDividerOperationManual.pdf
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

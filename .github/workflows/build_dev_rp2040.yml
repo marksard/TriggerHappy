@@ -25,15 +25,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install platformio
 
-      - name: Build project (env:waveshare_rp2040_zero)
+      - name: Build project
         run: |
           platformio run -e waveshare_rp2040_zero -d app/TriggerHappy
           platformio run -e waveshare_rp2040_zero -d app/HexBitr
+          platformio run -e waveshare_rp2040_zero -d app/ClockDivider
 
       - name: Rename .uf2
         run: |
-          cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 app/TriggerHappy/TriggerHappy.uf2
-          cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 app/HexBitr/HexBitr.uf2
+          cp app/TriggerHappy/.pio/build/waveshare_rp2040_zero/firmware.uf2 TriggerHappy.uf2
+          cp app/TriggerHappy/manual/TriggerHappyOperationManual.pdf TriggerHappyOperationManual.pdf
+          cp app/HexBitr/.pio/build/waveshare_rp2040_zero/firmware.uf2 HexBitr.uf2
+          cp app/HexBitr/manual/HexBitrOperationManual.pdf HexBitrOperationManual.pdf
+          cp app/ClockDivider/.pio/build/waveshare_rp2040_zero/firmware.uf2 ClockDivider.uf2
+          cp app/ClockDivider/manual/ClockDividerOperationManual.pdf ClockDividerOperationManual.pdf
 
       - name: Create timestamp tag
         run: |
@@ -48,10 +53,16 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: TriggerHappy
-          path: app/TriggerHappy/TriggerHappy.uf2
+          path: TriggerHappy.uf2
 
       - name: Upload HexBitr.uf2 artifact
         uses: actions/upload-artifact@v4
         with:
           name: HexBitr
-          path: app/HexBitr/HexBitr.uf2
+          path: HexBitr.uf2
+
+      - name: Upload ClockDivider.uf2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClockDivider
+          path: ClockDivider.uf2
