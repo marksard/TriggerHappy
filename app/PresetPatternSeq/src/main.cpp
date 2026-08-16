@@ -123,6 +123,9 @@ vs constrainCyclic(vs value, vs min, vs max)
 
 void addTriggerModeCh(int8_t delta)
 {
+    rgbLedControl.resetFreq();
+    rgbLedControl.resetLevel();
+
     trigModeIndex = constrainCyclic(trigModeIndex + delta, 0, 6);
     const RGBLEDPWMControl::MenuColor menuColors[OUT_COUNT + 1] = {
         RGBLEDPWMControl::MenuColor::GREEN,
@@ -189,6 +192,9 @@ void operation(uint16_t buttonStates, int8_t encValue)
     else if (buttonStates == ButtonCondition::HM_HRE)
     {
         patSeq.onResetRise();
+        clockDivB.onResetRise();
+        lfo.onResetRise();
+        rgbLedControl.setBlink();
     }
     else if (buttonStates == ButtonCondition::NONE)
     {
@@ -207,6 +213,7 @@ void operation(uint16_t buttonStates, int8_t encValue)
         {
             clockDivB.channels[trigModeIndex - 3].addRatio(encValue);
         }
+        rgbLedControl.resetFreq();
     }
 }
 
@@ -318,8 +325,10 @@ void setup()
     dataEdge.init(DATA, 2000); // 入力チェックのみ利用
     triggerOutManager.init();
 
-    rgbLedControl.init(20000, PWM_BIT, LED_R, LED_G, LED_B);
+    rgbLedControl.init(200000, PWM_BIT, LED_R, LED_G, LED_B);
     rgbLedControl.setMenuColor(menuColor);
+    rgbLedControl.ignoreMenuColor(false);
+    rgbLedControl.setWave(MiniOsc::Wave::TRI);
 
     systemConfig.initEEPROM();
     systemConfig.loadUserConfig();
