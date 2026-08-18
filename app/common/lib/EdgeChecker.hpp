@@ -22,8 +22,13 @@ public:
     /// @param pin
     void init(uint8_t pin, ulong aliveTimeMillis = 1000)
     {
+        _lastValue = 0;
+        _lastEdge = false;
+        _lastMicros = 0;
+        
         setPin(pin);
         _aliveTimeMicros = aliveTimeMillis * 1000;
+        _duration = _aliveTimeMicros;
         // 空読み
         for(int i = 0; i < 8; ++i)
         {
