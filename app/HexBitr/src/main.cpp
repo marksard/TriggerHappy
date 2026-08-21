@@ -93,6 +93,7 @@ static volatile bool clockEdgeLatch = false;
 static volatile bool dataEdgeLatch = false;
 static volatile bool resetEdgeLatch = false;
 static EdgeChecker clockEdge;
+static EdgeChecker resetEdge;
 
 // UIほか
 
@@ -196,6 +197,11 @@ void process(int16_t dataInValue)
                 // triggerOutManager.isGateMode() ? 0 : 1);
             triggerOutManager.out(i)->set(trig);
         }
+
+        if (!resetEdge.isAlive())
+        {
+            resetEdgeLatch = true;
+        }
     }
     else
     {
@@ -238,10 +244,12 @@ void edgeCallback(uint gpio, uint32_t events)
     {
         if (events & GPIO_IRQ_EDGE_RISE)
         {
+            resetEdge.updateEdge(1);
             resetEdgeLatch = true;
         }
         else if (events & GPIO_IRQ_EDGE_FALL)
         {
+            resetEdge.updateEdge(0);
             resetEdgeLatch = false;
         }
     }
@@ -268,6 +276,7 @@ void setup()
     buttons[3].init(BTN_MODE);
     buttons[3].setHoldTime(350);
     clockEdge.init(CLOCK); // clockエッジ期間計測のみで利用
+    resetEdge.init(RESET, 2000);
     dataIn.init(DATA);
     triggerOutManager.init();
 
@@ -284,8 +293,8 @@ void setup()
     initPWM(OUT_CV, PWM_RESO);
     // initPWMIntr(PWM_INTR_PIN, interruptPWM, &interruptSliceNum, SAMPLE_FREQ, INTR_PWM_RESO, CPU_CLOCK);
 
-    gpio_init(CLOCK);
-    gpio_init(RESET);
+    // gpio_init(CLOCK);
+    // gpio_init(RESET);
     gpio_set_irq_enabled(CLOCK, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_enabled(RESET, GPIO_IRQ_EDGE_RISE | GPIO_IRQ_EDGE_FALL, true);
     gpio_set_irq_callback(edgeCallback);
